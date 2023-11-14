@@ -1,0 +1,12 @@
+﻿@page "/"
+
+<PageTitle>QuantumDiffusion3DFD</PageTitle>
+
+<h1>QuantumDiffusion3DFD Simulation</h1>
+
+<p>Simulation Time: @simulationTime seconds</p>
+<p>Wavefunction Value at (x, y, z): @wavefunctionValue</p>
+<p>Frame Count: @frameCount</p>
+<p>Frame Rate: @frameRate FPS</p>
+
+<button @onclick="TogglePause">@(Paused ? "Resume" : "Pause")</button>
