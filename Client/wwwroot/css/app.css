@@ -99,3 +99,9 @@ a, .btn-link {
     .loading-progress-text:after {
         content: var(--blazor-load-percentage-text, "Loading");
     }
+
+#threejs-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}

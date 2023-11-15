@@ -1,12 +1,25 @@
 ﻿@page "/"
 
+@inject IJSRuntime JSRuntime
+
 <PageTitle>QuantumDiffusion3DFD</PageTitle>
 
-<h1>QuantumDiffusion3DFD Simulation</h1>
 
-<p>Simulation Time: @simulationTime seconds</p>
-<p>Wavefunction Value at (x, y, z): @wavefunctionValue</p>
-<p>Frame Count: @frameCount</p>
-<p>Frame Rate: @frameRate FPS</p>
-
+<h1>Quantum De-coherence Simulation</h1>
+<div id="threejs-container" style="position: relative; width: 100%; height: 100%;">
+    <canvas id="threejs-canvas"></canvas>
+</div>
+<p>Wavefunction Value at (x, y, z): @_wavefunctionValue</p>
+<p>Frame Count: @_frameCount</p>
+<p>Frame Rate: @_frameRate FPS</p>
 <button @onclick="TogglePause">@(Paused ? "Resume" : "Pause")</button>
+
+@* @if (Data != null)
+{
+    <div>
+        @foreach (var item in Data)
+        {
+            <span>@item </span>
+        }
+    </div>
+} *@
