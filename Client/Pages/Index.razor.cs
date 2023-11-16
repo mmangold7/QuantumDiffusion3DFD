@@ -39,8 +39,8 @@ public partial class Index
 
     private double _gaussianX0;
     private double _gaussianY0;
-    private double _gaussianZ0 ;
-    private double _gaussianSigma = 1.0; // Default value
+    private double _gaussianZ0;
+    private double _gaussianSigma;
     private double _gaussianKx;
     private double _gaussianKy;
     private double _gaussianKz;
@@ -90,7 +90,7 @@ public partial class Index
         simulationToken = simulationTokenSource.Token;
         
         SetupQuantumSystem();
-        _quantumSystem.InitializeGaussianPacket(_gaussianX0, _gaussianY0, _gaussianZ0, _gaussianSigma, _gaussianKx, _gaussianKy, _gaussianKz);
+        await Update3DDisplay();
         StateHasChanged();
 
         await StartQuantumSimulationLoop(simulationToken, Paused);
@@ -109,23 +109,23 @@ public partial class Index
 
     protected override async Task OnInitializedAsync()
     {
+        _gaussianX0 = dimensions.x / 2;
+        _gaussianY0 = dimensions.y / 2;
+        _gaussianZ0 = dimensions.z / 2;
+        _gaussianSigma = 1.0;
+        _gaussianKx = 20;
+        _gaussianKy = 20;
+        _gaussianKz = 20;
+
         await RestartSimulation();
     }
 
     private void SetupQuantumSystem()
     {
         _quantumSystem = new QuantumSystem(dimensions, _timeStep, _spaceStep, _boundaryType);
-
-        _gaussianX0 = _quantumSystem.Dimensions.x / 2;
-        _gaussianY0 = _quantumSystem.Dimensions.y / 2;
-        _gaussianZ0 = _quantumSystem.Dimensions.z / 2;
-        _gaussianSigma = 1.0; // Default value
-        _gaussianKx = 10;
-        _gaussianKy = 10;
-        _gaussianKz = 10;
-
         _quantumSystem.InitializeGaussianPacket(_gaussianX0, _gaussianY0, _gaussianZ0, _gaussianSigma, _gaussianKx, _gaussianKy, _gaussianKz);
         _originalTotalEnergy = _quantumSystem.CalculateTotalEnergy();
+        _currentTotalEnergy = _quantumSystem.CalculateTotalEnergy();
     }
 
     private async Task StartQuantumSimulationLoop(CancellationToken token, bool paused = true)

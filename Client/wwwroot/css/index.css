@@ -36,7 +36,11 @@ html, body {
 
     .control-panel.collapsed {
         width: 100%;
-        height: 80px;
+        height: 70px;
+    }
+
+    #toggleButton {
+        margin-top: 0px;
     }
 
     .control-panel button {
@@ -46,7 +50,7 @@ html, body {
         border: 1px solid black;
         border-radius: 4px;
         padding: 10px;
-        margin-bottom: 10px;
+        /*margin-top: 10px;*/
         cursor: pointer;
     }
 
@@ -77,17 +81,18 @@ html, body {
 .canvas-container {
     position: relative;
     width: 100%;
-    height: 50vh;
+    height: 70vh;
 }
 
 #threejs-canvas {
     width: 100%;
-    height: 50vh;
+    height: 70vh;
 }
 
 @media (min-width: 768px) {
     .control-panel.collapsed {
         width: 80px;
+        height: 100%;
     }
 
     .control-panel.expanded {
