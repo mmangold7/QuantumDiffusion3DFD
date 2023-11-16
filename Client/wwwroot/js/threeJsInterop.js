@@ -10,7 +10,7 @@ function initializeThreeJs(dimensions, spacing) {
     renderer = new THREE.WebGLRenderer({ canvas: canvas });
 
     const fov = 75;
-    const aspect = 2;  // the canvas default
+    const aspect = canvas.clientWidth / canvas.clientHeight;
     const near = 0.1;
     const far = 1000;
     camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
@@ -20,8 +20,7 @@ function initializeThreeJs(dimensions, spacing) {
 
     const numParticles = dimensions.x * dimensions.y * dimensions.z;
     const positions = new Float32Array(numParticles * 3);
-    const colors = new Float32Array(numParticles * 3);
-    const color = new THREE.Color();
+    const probabilities = new Float32Array(numParticles); // For the probabilities attribute
 
     let index = 0;
     for (let x = 0; x < dimensions.x; x++) {
@@ -32,10 +31,7 @@ function initializeThreeJs(dimensions, spacing) {
                 positions[i3 + 1] = y * spacing * 100; // y
                 positions[i3 + 2] = z * spacing * 100; // z
 
-                color.setRGB(1, 0, 0); // Default color (red)
-                colors[i3 + 0] = color.r;
-                colors[i3 + 1] = color.g;
-                colors[i3 + 2] = color.b;
+                probabilities[index] = 1.0; // Initialize with a default value
 
                 index++;
             }
@@ -44,14 +40,50 @@ function initializeThreeJs(dimensions, spacing) {
 
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geometry.setAttribute('probability', new THREE.BufferAttribute(probabilities, 1));
 
-    const material = new THREE.PointsMaterial({
-        size: 1.5,
+    const shaderMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            color: { value: new THREE.Color(0xff0000) },
+            maxProbability: { value: 1.0 },
+            probabilities: { value: [] },
+            pointSize: { value: 10.0 } // Default point size
+        },
+        vertexShader: `
+        attribute float probability;
+        uniform float maxProbability;
+        uniform float pointSize; // Use uniform for point size
+        varying float vAlpha;
+        void main() {
+            vAlpha = probability / maxProbability;
+
+            // Calculate distance from the camera
+            vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+            float distance = length(mvPosition.xyz);
+
+            // Adjust point size based on distance
+            gl_PointSize = pointSize * vAlpha / distance * 300.0; // Adjust factor as needed
+
+            gl_Position = projectionMatrix * mvPosition;
+        }
+    `,
+        fragmentShader: `
+        uniform vec3 color;
+        varying float vAlpha;
+        void main() {
+            if (dot(gl_PointCoord - vec2(0.5), gl_PointCoord - vec2(0.5)) > 0.25) {
+                discard;
+            }
+            gl_FragColor = vec4(color, vAlpha); // Entire point has uniform alpha based on probability
+        }
+    `,
+        blending: THREE.AdditiveBlending,
+        depthTest: false,
+        transparent: true,
         vertexColors: true
     });
 
-    particleSystem = new THREE.Points(geometry, material);
+    particleSystem = new THREE.Points(geometry, shaderMaterial);
     scene.add(particleSystem);
 
     // Event listeners for mouse interaction
@@ -130,6 +162,13 @@ function initializeThreeJs(dimensions, spacing) {
     animate();
 }
 
+function updatePointSize(newPointSize) {
+    if (particleSystem && particleSystem.material && particleSystem.material.uniforms.pointSize) {
+        particleSystem.material.uniforms.pointSize.value = newPointSize;
+        particleSystem.material.needsUpdate = true;
+    }
+}
+
 function animate() {
     requestAnimationFrame(animate);
     render();
@@ -156,21 +195,20 @@ function resizeRendererToDisplaySize(renderer) {
 }
 
 function updateThreeJsScene(probabilityData) {
-    //console.log(probabilityData);
+    // Update the probabilities attribute
+    const probabilities = particleSystem.geometry.attributes.probability.array;
+    let maxProbability = Math.max(...probabilityData);
 
-    const colors = particleSystem.geometry.attributes.color.array;
-
-    // Normalize the probability data
-    const maxProbability = Math.max(...probabilityData);
+    // If your maxProbability is zero (which can't be used for division), then set it to 1
+    if (maxProbability === 0) maxProbability = 1;
 
     for (let i = 0; i < probabilityData.length; i++) {
-        const intensity = probabilityData[i] / maxProbability;
-        const i3 = i * 3;
-        colors[i3 + 0] = intensity; // Red channel
-        colors[i3 + 1] = 0;         // Green channel
-        colors[i3 + 2] = 0;         // Blue channel
+        probabilities[i] = probabilityData[i] / maxProbability; // Normalized probability
     }
 
-    particleSystem.geometry.attributes.position.needsUpdate = true;
-    particleSystem.geometry.attributes.color.needsUpdate = true;
+    // Update the maximum probability uniform
+    particleSystem.material.uniforms.maxProbability.value = maxProbability;
+
+    // Mark the probabilities attribute as needing an update
+    particleSystem.geometry.attributes.probability.needsUpdate = true;
 }
