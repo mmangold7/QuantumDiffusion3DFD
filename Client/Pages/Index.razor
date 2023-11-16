@@ -3,87 +3,103 @@
 @inject IJSRuntime JSRuntime
 @inject ILogger<Index> Logger
 
-<PageTitle>QuantumDiffusion3DFD</PageTitle>
+<PageTitle>Quantum De-coherence Simulation</PageTitle>
 
-<h1>Quantum De-coherence Simulation</h1>
 <div class="simulation-container">
     <div class="control-panel">
-        <button @onclick="TogglePause">@(Paused ? "Resume" : "Pause")</button>
-        <button @onclick="RestartSimulation">Restart Simulation</button>
-        <div class="slider-container">
-            <div>
-                <label for="timeStepSlider">Time Step:</label>
-                <input type="range" id="timeStepSlider" min="@MinTimeLogValue" max="@MaxTimeLogValue" step="0.01"
-                       @bind="_logTimeStepPosition" @oninput="OnTimeStepChanged" />
-                <span>@TimeStep</span>
+        <button class="toggle-controls" @onclick="ToggleControlsVisibility">@ToggleText</button>
+        <div class="controls" style="@(_areControlsVisible ? "display: block;" : "display:none;")">
+            <!-- Pause and Restart Buttons -->
+            <div class="control-item">
+                <button @onclick="TogglePause">@(Paused ? "Resume" : "Pause")</button>
+                <button @onclick="RestartSimulation">Restart Simulation</button>
             </div>
-            <div>
-                <label for="spaceStepSlider">Space Step:</label>
-                <input type="range" id="spaceStepSlider" min="@MinSpaceLogValue" max="@MaxSpaceLogValue" step="0.01"
-                       @bind="_logSpaceStepPosition" @oninput="OnSpaceStepChanged" />
-                <span>@SpaceStep</span>
+
+            <!-- Energy Display -->
+            <div class="control-item">
+                <text>Original Energy: @_originalTotalEnergy</text>
+                <text>Current Energy: @_currentTotalEnergy</text>
             </div>
+
+            <!-- Time Step Slider -->
             <div class="slider">
-                <div class="label-container">
-                    <label for="hbarSlider">H-bar:</label>
-                    <span class="value-display">@_hbar.ToString("0.0000")</span>
-                </div>
-                <input type="range" id="hbarSlider" min="@MinLogValue" max="@MaxLogValue" step="0.01"
-                       value="@_hbarSliderPosition" @oninput="OnHbarSliderChanged"/>
+                <label for="timeStepSlider">Time Step: <span class="value-display">@TimeStep.ToString("0.0000")</span></label>
+                <input type="range" id="timeStepSlider" min="@MinTimeLogValue" max="@MaxTimeLogValue" step="0.01" @bind="_logTimeStepPosition" @oninput="OnTimeStepChanged" />
             </div>
+
+            <!-- Space Step Slider -->
             <div class="slider">
-                <div class="label-container">
-                    <label for="hbarSlider">Mass:</label>
-                    <span class="value-display">@_mass.ToString("0.0000")</span>
-                </div>
-                <input type="range" id="massSlider" min="@MinLogValue" max="@MaxLogValue" step="0.01"
-                       value="@_massSliderPosition" @oninput="OnMassSliderChanged"/>
+                <label for="spaceStepSlider">Space Step: <span class="value-display">@SpaceStep.ToString("0.0000")</span></label>
+                <input type="range" id="spaceStepSlider" min="@MinSpaceLogValue" max="@MaxSpaceLogValue" step="0.01" @bind="_logSpaceStepPosition" @oninput="OnSpaceStepChanged" />
             </div>
+
+            <!-- H-bar Slider -->
             <div class="slider">
-                <div class="label-container">
-                    <label for="pointSizeSlider">Point Size:</label>
-                    <span class="value-display">@_pointSize.ToString("0.0")</span>
-                </div>
-                <input type="range" id="pointSizeSlider" min="1" max="26" step="0.01"
-                       value="@_pointSize" @oninput="UpdatePointSize"/>
+                <label for="hbarSlider">H-bar: <span class="value-display">@_hbar.ToString("0.0000")</span></label>
+                <input type="range" id="hbarSlider" min="@MinLogValue" max="@MaxLogValue" step="0.01" @bind="_hbarSliderPosition" @oninput="OnHbarSliderChanged" />
             </div>
-        </div>
-        <select @bind="_boundaryType">
-            <option value="Reflective">Reflective</option>
-            <option value="Absorbing">Absorbing</option>
-        </select>
-        <div>
-            <label for="gaussianX0">Initial X Position:</label>
-            <input type="number" id="gaussianX0" @bind="_gaussianX0" />
-        </div>
-        <div>
-            <label for="gaussianY0">Initial Y Position:</label>
-            <input type="number" id="gaussianY0" @bind="_gaussianY0" />
-        </div>
-        <div>
-            <label for="gaussianZ0">Initial Z Position:</label>
-            <input type="number" id="gaussianZ0" @bind="_gaussianZ0" />
-        </div>
-        <div>
-            <label for="gaussianSigma">Sigma:</label>
-            <input type="number" id="gaussianSigma" @bind="_gaussianSigma" />
-        </div>
-        <div>
-            <label for="gaussianKx">Wave Vector X Component:</label>
-            <input type="number" id="gaussianKx" @bind="_gaussianKx" />
-        </div>
-        <div>
-            <label for="gaussianKy">Wave Vector Y Component:</label>
-            <input type="number" id="gaussianKy" @bind="_gaussianKy" />
-        </div>
-        <div>
-            <label for="gaussianKz">Wave Vector Z Component:</label>
-            <input type="number" id="gaussianKz" @bind="_gaussianKz" />
+
+            <!-- Mass Slider -->
+            <div class="slider">
+                <label for="massSlider">Mass: <span class="value-display">@_mass.ToString("0.0000")</span></label>
+                <input type="range" id="massSlider" min="@MinLogValue" max="@MaxLogValue" step="0.01" @bind="_massSliderPosition" @oninput="OnMassSliderChanged" />
+            </div>
+
+            <!-- Point Size Slider -->
+            <div class="slider">
+                <label for="pointSizeSlider">Point Size: <span class="value-display">@_pointSize.ToString("0.0")</span></label>
+                <input type="range" id="pointSizeSlider" min="1" max="26" step="0.01" value="@_pointSize" @oninput="UpdatePointSize" />
+            </div>
+
+            <!-- Boundary Type Selector -->
+            <div class="control-item">
+                <label for="boundaryType">Boundary Type:</label>
+                <select id="boundaryType" @bind="_boundaryType">
+                    <option value="Reflective">Reflective</option>
+                    <option value="Absorbing">Absorbing</option>
+                </select>
+            </div>
+
+            <!-- Gaussian Packet Parameters -->
+            <div class="control-item">
+                <label for="gaussianX0">Initial X Position:</label>
+                <input type="number" id="gaussianX0" @bind="_gaussianX0" />
+            </div>
+
+            <div class="control-item">
+                <label for="gaussianY0">Initial Y Position:</label>
+                <input type="number" id="gaussianY0" @bind="_gaussianY0" />
+            </div>
+
+            <div class="control-item">
+                <label for="gaussianZ0">Initial Z Position:</label>
+                <input type="number" id="gaussianZ0" @bind="_gaussianZ0" />
+            </div>
+
+            <div class="control-item">
+                <label for="gaussianSigma">Sigma:</label>
+                <input type="number" id="gaussianSigma" @bind="_gaussianSigma" />
+            </div>
+
+            <div class="control-item">
+                <label for="gaussianKx">Wave Vector X Component:</label>
+                <input type="number" id="gaussianKx" @bind="_gaussianKx" />
+            </div>
+
+            <div class="control-item">
+                <label for="gaussianKy">Wave Vector Y Component:</label>
+                <input type="number" id="gaussianKy" @bind="_gaussianKy" />
+            </div>
+
+            <div class="control-item">
+                <label for="gaussianKz">Wave Vector Z Component:</label>
+                <input type="number" id="gaussianKz" @bind="_gaussianKz" />
+            </div>
         </div>
     </div>
     <div class="canvas-container">
-        <div id="threejs-container" style="position: relative; width: 100%; height: 100%;">
-            <canvas id="threejs-canvas"></canvas>
+        <canvas id="threejs-canvas"></canvas>
+        <div class="overlay-text">
             <p>Frame Count: @_frameCount</p>
             <p>Frame Rate: @_frameRate FPS</p>
         </div>

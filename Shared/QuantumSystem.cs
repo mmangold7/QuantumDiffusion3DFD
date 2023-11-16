@@ -5,6 +5,8 @@ namespace QuantumDiffusion3DFD.Shared;
 public class QuantumSystem
 {
     private Complex[,,] wavefunction;
+    private Complex[,,] laplacianWavefunction;
+
     private double[,,] potential;
     private double timeStep;
     private double deltaX, deltaY, deltaZ;
@@ -24,12 +26,13 @@ public class QuantumSystem
         this.boundaryType = boundaryType;
 
         wavefunction = new Complex[dimensions.x, dimensions.y, dimensions.z];
+        laplacianWavefunction = new Complex[dimensions.x, dimensions.y, dimensions.z];
         potential = new double[dimensions.x, dimensions.y, dimensions.z];
     }
 
-    public void ApplySingleTimeEvolutionStep()
+    public double CalculateTotalEnergy()
     {
-        Complex[,,] newWavefunction = new Complex[Dimensions.x, Dimensions.y, Dimensions.z];
+        double totalEnergy = 0.0;
 
         for (int x = 0; x < Dimensions.x; x++)
         {
@@ -37,13 +40,35 @@ public class QuantumSystem
             {
                 for (int z = 0; z < Dimensions.z; z++)
                 {
-                    // Calculate the Laplacian of psi using the updated method
-                    Complex laplacianPsi = CalculateLaplacian(wavefunction, x, y, z, boundaryType);
+                    Complex psi = wavefunction[x, y, z];
+                    double probabilityDensity = psi.Magnitude * psi.Magnitude;
 
-                    // Schrödinger equation discretized
-                    Complex timeDerivative = (-Hbar * Hbar / (2 * SingleParticleMass)) * laplacianPsi + potential[x, y, z] * wavefunction[x, y, z];
+                    Complex laplacianPsi = laplacianWavefunction[x, y, z]; // Use the stored Laplacian
+                    double kineticEnergy = -(Hbar * Hbar / (2 * SingleParticleMass)) * (laplacianPsi * Complex.Conjugate(psi)).Real;
 
-                    // Forward Euler method for time stepping
+                    double potentialEnergy = potential[x, y, z] * probabilityDensity;
+                    totalEnergy += kineticEnergy + potentialEnergy;
+                }
+            }
+        }
+
+        return totalEnergy;
+    }
+
+    public void ApplySingleTimeEvolutionStep()
+    {
+        Complex[,,] newWavefunction = new Complex[Dimensions.x, Dimensions.y, Dimensions.z];
+        //laplacianWavefunction = new Complex[Dimensions.x, Dimensions.y, Dimensions.z];
+
+        for (int x = 0; x < Dimensions.x; x++)
+        {
+            for (int y = 0; y < Dimensions.y; y++)
+            {
+                for (int z = 0; z < Dimensions.z; z++)
+                {
+                    laplacianWavefunction[x, y, z] = CalculateLaplacian(wavefunction, x, y, z, boundaryType);
+
+                    Complex timeDerivative = (-Hbar * Hbar / (2 * SingleParticleMass)) * laplacianWavefunction[x, y, z] + potential[x, y, z] * wavefunction[x, y, z];
                     newWavefunction[x, y, z] = wavefunction[x, y, z] - (Complex.ImaginaryOne / Hbar) * timeDerivative * timeStep;
                 }
             }
@@ -130,16 +155,6 @@ public class QuantumSystem
         return probabilityDensity;
     }
 
-    public Complex GetWavefunctionValue(int x, int y, int z)
-    {
-        if (x < 0 || x >= Dimensions.x || y < 0 || y >= Dimensions.y || z < 0 || z >= Dimensions.z)
-        {
-            throw new ArgumentException("Invalid coordinates.");
-        }
-
-        return wavefunction[x, y, z];
-    }
-
     public void InitializeGaussianPacket(double x0, double y0, double z0, double sigma, double kx, double ky, double kz)
     {
         double A = CalculateNormalizationConstant(sigma);
@@ -157,6 +172,7 @@ public class QuantumSystem
                     double imagPart = Math.Exp(exponent) * Math.Sin(phase);
 
                     wavefunction[x, y, z] = new Complex(realPart, imagPart) * A;
+                    laplacianWavefunction[x, y, z] = CalculateLaplacian(wavefunction, x, y, z, boundaryType);
                 }
             }
         }
@@ -188,7 +204,15 @@ public class QuantumSystem
         return 1.0 / Math.Sqrt(sum);
     }
 }
+//public Complex GetWavefunctionValue(int x, int y, int z)
+//    {
+//        if (x < 0 || x >= Dimensions.x || y < 0 || y >= Dimensions.y || z < 0 || z >= Dimensions.z)
+//        {
+//            throw new ArgumentException("Invalid coordinates.");
+//        }
 
+//        return wavefunction[x, y, z];
+//    }
 //public void InitializeWavefunction(Complex initialWavefunction)
 //{
 //    for (int x = 0; x < dimensions.x; x++)

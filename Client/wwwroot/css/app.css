@@ -100,105 +100,124 @@ a, .btn-link {
         content: var(--blazor-load-percentage-text, "Loading");
     }
 
-#threejs-canvas {
-    width: 100%;
-    height: 100%;
-    display: block;
-}
-
 .simulation-container {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: center; /* Center children on the cross axis */
 }
 
 .control-panel {
-    width: 90%; /* Adjust this to control the width on narrow screens */
-    max-width: 400px; /* Increase max-width if needed */
-    margin: 10px auto; /* Center the panel */
-    padding: 20px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background: #fff;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    width: 100%; /* Full width on smaller screens */
+    margin-bottom: 10px;
+    box-sizing: border-box; /* Include padding in the width */
 }
+
+    .control-panel .controls {
+        display: none; /* Hidden by default, shown when the button is clicked */
+    }
+
+    .control-panel button {
+        display: block; /* Ensure the button takes full width */
+        width: 100%;
+        margin-bottom: 10px; /* Space below the toggle button */
+    }
+
+.slider {
+    margin-bottom: 20px;
+}
+
+    .slider label {
+        display: block; /* Stack label and slider */
+        margin-bottom: 5px; /* Space between label and slider */
+    }
+
+    .slider .value-display {
+        display: block; /* Value display below the label */
+        text-align: right;
+        margin-bottom: 5px; /* Space between value display and slider */
+    }
+
+    .slider input[type="range"] {
+        width: 100%;
+    }
 
 .canvas-container {
-    width: 100%;
+    width: 100%; /* Full width */
+    margin-top: 10px; /* Space above the canvas */
 }
 
-.simulation-container {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch; /* Align items to stretch to the container's width */
-    justify-content: flex-start; /* Align items to the start of the flex-direction */
+#threejs-canvas {
+    width: 100%;
+    height: auto; /* Adjust height automatically based on the aspect ratio */
 }
 
 @media (min-width: 768px) {
     .simulation-container {
         flex-direction: row;
-        justify-content: center;
-        align-items: flex-start; /* Align items to the top */
+        align-items: flex-start; /* Align to the top on wider screens */
     }
 
     .control-panel {
-        width: 200px; /* Fixed width for wider screens */
+        width: 200px; /* Fixed width for control panel on larger screens */
         margin-right: 20px; /* Space between control panel and canvas */
-        padding: 10px; /* Adjust padding for wider screens */
+        order: -1; /* Ensure control panel comes first */
     }
+
+        .control-panel .controls {
+            display: block; /* Always show controls on larger screens */
+        }
 
     .canvas-container {
-        flex-grow: 1;
+        flex-grow: 1; /* Canvas takes remaining space */
+        margin-top: 0; /* No space above the canvas */
+    }
+
+    #threejs-canvas {
+        /* Set height based on the aspect ratio and the actual width of the canvas container */
+        height: calc(var(--canvas-width) * (9 / 16));
     }
 }
 
-.slider-container {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 20px;
-    background-color: #f0f0f0;
-    border-radius: 10px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    margin-bottom: 20px;
+.overlay-text {
+    /*position: absolute;*/
+    top: 10px;
+    left: 10px;
+    color: white;
+    font-size: 0.75em; /* Smaller text */
 }
 
-.slider {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.label-container {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    width: 120px;
-}
-
-.value-display {
-    text-align: right;
+input[type="number"],input[type="range"],select {
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .slider label {
-    font-weight: bold;
-    margin-bottom: 5px;
-    display: inline-block;
-    width: 100px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-.slider input[type=range] {
-    width: 100%;
-    margin-bottom: 5px;
+.toggle-controls {
+    display: block; /* Make sure it's block to have a height */
+    width: 100%; /* Take the full width */
+    padding: 10px; /* Add some padding for visibility */
+    background-color: #f0f0f0; /* A light background color */
+    border: 1px solid #ccc; /* A border to distinguish the button */
+    cursor: pointer; /* Change cursor to pointer on hover */
+    margin-bottom: 10px; /* Add some margin at the bottom */
 }
 
-div {
-    margin-bottom: 10px;
+/* Additional styles for responsive text inputs */
+.control-item input[type="number"],
+.control-item select {
+    margin-top: 5px;
 }
 
-label {
-    display: inline-block;
-    width: 200px;
-}
-
-input[type="number"] {
-    width: 100px;
+/* Add this to keep the label and value display on the same line */
+.slider .value-display {
+    margin-left: auto;
 }

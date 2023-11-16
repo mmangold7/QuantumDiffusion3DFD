@@ -213,3 +213,12 @@ function updateThreeJsScene(probabilityData) {
         particleSystem.geometry.attributes.probability.needsUpdate = true;
     }
 }
+
+//function toggleControls() {
+//    var controls = document.querySelector('.control-panel > .controls');
+//    if (controls.style.display === 'none' || controls.style.display === '') {
+//        controls.style.display = 'block';
+//    } else {
+//        controls.style.display = 'none';
+//    }
+//}

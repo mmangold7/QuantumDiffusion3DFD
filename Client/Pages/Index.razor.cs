@@ -29,6 +29,9 @@ public partial class Index
     private const double MinSpaceLogValue = -3; // Corresponds to 10^-3 = 0.001
     private const double MaxSpaceLogValue = 1;  // Corresponds to 10^1 = 10
 
+    private double _originalTotalEnergy;
+    private double _currentTotalEnergy;
+
     private double TimeStep => Math.Pow(10, _logTimeStepPosition);
     private double SpaceStep => Math.Pow(10, _logSpaceStepPosition);
 
@@ -122,6 +125,7 @@ public partial class Index
         _gaussianKz = 10;
 
         _quantumSystem.InitializeGaussianPacket(_gaussianX0, _gaussianY0, _gaussianZ0, _gaussianSigma, _gaussianKx, _gaussianKy, _gaussianKz);
+        _originalTotalEnergy = _quantumSystem.CalculateTotalEnergy();
     }
 
     private async Task StartQuantumSimulationLoop(CancellationToken token, bool paused = true)
@@ -143,6 +147,7 @@ public partial class Index
                 _frameCount++;
 
                 _quantumSystem.ApplySingleTimeEvolutionStep();
+                _currentTotalEnergy = _quantumSystem.CalculateTotalEnergy();
 
                 await Update3DDisplay();
 
@@ -155,6 +160,20 @@ public partial class Index
             else
                 await Task.Delay(SimulationDelayMilliseconds, token);
         }
+    }
+
+    //private async Task ToggleControlPanel()
+    //{
+    //    await JSRuntime.InvokeVoidAsync("toggleControls");
+    //}
+
+    private bool _areControlsVisible = true; // Controls are hidden by default
+
+    private string ToggleText => _areControlsVisible ? "Hide Controls" : "Show Controls";
+
+    private void ToggleControlsVisibility()
+    {
+        _areControlsVisible = !_areControlsVisible;
     }
 
     public float[] GetProbabilityData(QuantumSystem quantumSystem)
