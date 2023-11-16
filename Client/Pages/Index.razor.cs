@@ -21,6 +21,17 @@ public partial class Index
     private CancellationTokenSource? simulationTokenSource;
     private float _timeStep = 0.0002f;
     private double _spaceStep = 0.1;
+
+    private double _logTimeStepPosition;
+    private double _logSpaceStepPosition;
+    private const double MinTimeLogValue = -5; // Corresponds to 10^-5 = 0.00001
+    private const double MaxTimeLogValue = -1; // Corresponds to 10^-1 = 0.1
+    private const double MinSpaceLogValue = -3; // Corresponds to 10^-3 = 0.001
+    private const double MaxSpaceLogValue = 1;  // Corresponds to 10^1 = 10
+
+    private double TimeStep => Math.Pow(10, _logTimeStepPosition);
+    private double SpaceStep => Math.Pow(10, _logSpaceStepPosition);
+
     private BoundaryType _boundaryType;
 
     private double _gaussianX0;
@@ -39,6 +50,18 @@ public partial class Index
     {
         _pointSize = float.Parse(e.Value.ToString());
         await JSRuntime.InvokeVoidAsync("updatePointSize", _pointSize);
+    }
+
+    private void OnTimeStepChanged(ChangeEventArgs e)
+    {
+        _logTimeStepPosition = Convert.ToDouble(e.Value);
+        _timeStep = (float)TimeStep;
+    }
+
+    private void OnSpaceStepChanged(ChangeEventArgs e)
+    {
+        _logSpaceStepPosition = Convert.ToDouble(e.Value);
+        _spaceStep = (float)SpaceStep;
     }
 
     private void OnHbarSliderChanged(ChangeEventArgs e)

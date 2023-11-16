@@ -6,20 +6,30 @@
 <PageTitle>QuantumDiffusion3DFD</PageTitle>
 
 <h1>Quantum De-coherence Simulation</h1>
-
 <div class="simulation-container">
     <div class="control-panel">
         <button @onclick="TogglePause">@(Paused ? "Resume" : "Pause")</button>
         <button @onclick="RestartSimulation">Restart Simulation</button>
-
         <div class="slider-container">
+            <div>
+                <label for="timeStepSlider">Time Step:</label>
+                <input type="range" id="timeStepSlider" min="@MinTimeLogValue" max="@MaxTimeLogValue" step="0.01"
+                       @bind="_logTimeStepPosition" @oninput="OnTimeStepChanged" />
+                <span>@TimeStep</span>
+            </div>
+            <div>
+                <label for="spaceStepSlider">Space Step:</label>
+                <input type="range" id="spaceStepSlider" min="@MinSpaceLogValue" max="@MaxSpaceLogValue" step="0.01"
+                       @bind="_logSpaceStepPosition" @oninput="OnSpaceStepChanged" />
+                <span>@SpaceStep</span>
+            </div>
             <div class="slider">
                 <div class="label-container">
                     <label for="hbarSlider">H-bar:</label>
                     <span class="value-display">@_hbar.ToString("0.0000")</span>
                 </div>
                 <input type="range" id="hbarSlider" min="@MinLogValue" max="@MaxLogValue" step="0.01"
-                       value="@_hbarSliderPosition" @oninput="OnHbarSliderChanged" />
+                       value="@_hbarSliderPosition" @oninput="OnHbarSliderChanged"/>
             </div>
             <div class="slider">
                 <div class="label-container">
@@ -27,7 +37,7 @@
                     <span class="value-display">@_mass.ToString("0.0000")</span>
                 </div>
                 <input type="range" id="massSlider" min="@MinLogValue" max="@MaxLogValue" step="0.01"
-                       value="@_massSliderPosition" @oninput="OnMassSliderChanged" />
+                       value="@_massSliderPosition" @oninput="OnMassSliderChanged"/>
             </div>
             <div class="slider">
                 <div class="label-container">
@@ -35,23 +45,13 @@
                     <span class="value-display">@_pointSize.ToString("0.0")</span>
                 </div>
                 <input type="range" id="pointSizeSlider" min="1" max="26" step="0.01"
-                       value="@_pointSize" @oninput="UpdatePointSize" />
+                       value="@_pointSize" @oninput="UpdatePointSize"/>
             </div>
         </div>
-
-        <input type="range" min="0.01" max="1" step="0.01" @bind="@_timeStep" />
-
-        <p>Time Step: @_timeStep</p>
-
-        <input type="range" min="0.01" max="1" step="0.01" @bind="@_spaceStep" />
-
-        <p>Space Step: @_spaceStep</p>
-
         <select @bind="_boundaryType">
             <option value="Reflective">Reflective</option>
             <option value="Absorbing">Absorbing</option>
         </select>
-
         <div>
             <label for="gaussianX0">Initial X Position:</label>
             <input type="number" id="gaussianX0" @bind="_gaussianX0" />
