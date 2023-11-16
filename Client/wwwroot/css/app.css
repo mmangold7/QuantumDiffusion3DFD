@@ -106,6 +106,49 @@ a, .btn-link {
     display: block;
 }
 
+.simulation-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.control-panel {
+    width: 90%; /* Adjust this to control the width on narrow screens */
+    max-width: 400px; /* Increase max-width if needed */
+    margin: 10px auto; /* Center the panel */
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.canvas-container {
+    width: 100%;
+}
+
+.simulation-container {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch; /* Align items to stretch to the container's width */
+    justify-content: flex-start; /* Align items to the start of the flex-direction */
+}
+
+@media (min-width: 768px) {
+    .simulation-container {
+        flex-direction: row;
+        justify-content: center;
+        align-items: flex-start; /* Align items to the top */
+    }
+
+    .control-panel {
+        width: 200px; /* Fixed width for wider screens */
+        margin-right: 20px; /* Space between control panel and canvas */
+        padding: 10px; /* Adjust padding for wider screens */
+    }
+
+    .canvas-container {
+        flex-grow: 1;
+    }
+}
+
 .slider-container {
     display: flex;
     flex-direction: column;
@@ -145,4 +188,17 @@ a, .btn-link {
 .slider input[type=range] {
     width: 100%;
     margin-bottom: 5px;
+}
+
+div {
+    margin-bottom: 10px;
+}
+
+label {
+    display: inline-block;
+    width: 200px;
+}
+
+input[type="number"] {
+    width: 100px;
 }

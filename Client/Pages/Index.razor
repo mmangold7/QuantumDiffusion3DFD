@@ -6,37 +6,86 @@
 <PageTitle>QuantumDiffusion3DFD</PageTitle>
 
 <h1>Quantum De-coherence Simulation</h1>
-<div id="threejs-container" style="position: relative; width: 100%; height: 100%;">
-    <canvas id="threejs-canvas"></canvas>
-</div>
-<div class="slider-container">
-    <div class="slider">
-        <div class="label-container">
-            <label for="hbarSlider">H-bar:</label>
-            <span class="value-display">@_hbar.ToString("0.0000")</span>
-        </div>
-        <input type="range" id="hbarSlider" min="@MinLogValue" max="@MaxLogValue" step="0.01"
-               value="@_hbarSliderPosition" @oninput="OnHbarSliderChanged" />
-    </div>
-    <div class="slider">
-        <div class="label-container">
-            <label for="hbarSlider">Mass:</label>
-            <span class="value-display">@_mass.ToString("0.0000")</span>
-        </div>
-        <input type="range" id="massSlider" min="@MinLogValue" max="@MaxLogValue" step="0.01"
-               value="@_massSliderPosition" @oninput="OnMassSliderChanged" />
-    </div>
-    <div class="slider">
-        <div class="label-container">
-            <label for="pointSizeSlider">Point Size:</label>
-            <span class="value-display">@_pointSize.ToString("0.0")</span>
-        </div>
-        <input type="range" id="pointSizeSlider" min="1" max="26" step="0.01"
-               value="@_pointSize" @oninput="UpdatePointSize" />
-    </div>
-</div>
 
-<p>Wavefunction Value at (x, y, z): @_wavefunctionValue</p>
-<p>Frame Count: @_frameCount</p>
-<p>Frame Rate: @_frameRate FPS</p>
-<button @onclick="TogglePause">@(Paused ? "Resume" : "Pause")</button>
+<div class="simulation-container">
+    <div class="control-panel">
+        <button @onclick="TogglePause">@(Paused ? "Resume" : "Pause")</button>
+        <button @onclick="RestartSimulation">Restart Simulation</button>
+
+        <div class="slider-container">
+            <div class="slider">
+                <div class="label-container">
+                    <label for="hbarSlider">H-bar:</label>
+                    <span class="value-display">@_hbar.ToString("0.0000")</span>
+                </div>
+                <input type="range" id="hbarSlider" min="@MinLogValue" max="@MaxLogValue" step="0.01"
+                       value="@_hbarSliderPosition" @oninput="OnHbarSliderChanged" />
+            </div>
+            <div class="slider">
+                <div class="label-container">
+                    <label for="hbarSlider">Mass:</label>
+                    <span class="value-display">@_mass.ToString("0.0000")</span>
+                </div>
+                <input type="range" id="massSlider" min="@MinLogValue" max="@MaxLogValue" step="0.01"
+                       value="@_massSliderPosition" @oninput="OnMassSliderChanged" />
+            </div>
+            <div class="slider">
+                <div class="label-container">
+                    <label for="pointSizeSlider">Point Size:</label>
+                    <span class="value-display">@_pointSize.ToString("0.0")</span>
+                </div>
+                <input type="range" id="pointSizeSlider" min="1" max="26" step="0.01"
+                       value="@_pointSize" @oninput="UpdatePointSize" />
+            </div>
+        </div>
+
+        <input type="range" min="0.01" max="1" step="0.01" @bind="@_timeStep" />
+
+        <p>Time Step: @_timeStep</p>
+
+        <input type="range" min="0.01" max="1" step="0.01" @bind="@_spaceStep" />
+
+        <p>Space Step: @_spaceStep</p>
+
+        <select @bind="_boundaryType">
+            <option value="Reflective">Reflective</option>
+            <option value="Absorbing">Absorbing</option>
+        </select>
+
+        <div>
+            <label for="gaussianX0">Initial X Position:</label>
+            <input type="number" id="gaussianX0" @bind="_gaussianX0" />
+        </div>
+        <div>
+            <label for="gaussianY0">Initial Y Position:</label>
+            <input type="number" id="gaussianY0" @bind="_gaussianY0" />
+        </div>
+        <div>
+            <label for="gaussianZ0">Initial Z Position:</label>
+            <input type="number" id="gaussianZ0" @bind="_gaussianZ0" />
+        </div>
+        <div>
+            <label for="gaussianSigma">Sigma:</label>
+            <input type="number" id="gaussianSigma" @bind="_gaussianSigma" />
+        </div>
+        <div>
+            <label for="gaussianKx">Wave Vector X Component:</label>
+            <input type="number" id="gaussianKx" @bind="_gaussianKx" />
+        </div>
+        <div>
+            <label for="gaussianKy">Wave Vector Y Component:</label>
+            <input type="number" id="gaussianKy" @bind="_gaussianKy" />
+        </div>
+        <div>
+            <label for="gaussianKz">Wave Vector Z Component:</label>
+            <input type="number" id="gaussianKz" @bind="_gaussianKz" />
+        </div>
+    </div>
+    <div class="canvas-container">
+        <div id="threejs-container" style="position: relative; width: 100%; height: 100%;">
+            <canvas id="threejs-canvas"></canvas>
+            <p>Frame Count: @_frameCount</p>
+            <p>Frame Rate: @_frameRate FPS</p>
+        </div>
+    </div>
+</div>

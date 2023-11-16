@@ -1,18 +1,15 @@
-﻿using QuantumDiffusion3DFD.Shared;
-using System.Numerics;
+﻿using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
-using Microsoft.AspNetCore.Components;
+using QuantumDiffusion3DFD.Shared;
 
 namespace QuantumDiffusion3DFD.Client.Pages;
 
 public partial class Index
 {
     private QuantumSystem _quantumSystem;
-    private Complex _wavefunctionValue;
     private int _frameCount;
     private double _frameRate;
     private (int x, int y, int z) dimensions = new(10, 10, 10);
-    private double spacing = 0.1;
     private double _hbar = 1.0;
     private double _mass = 1.0;
     private double _hbarSliderPosition = 0; // logarithmic scale
@@ -20,8 +17,21 @@ public partial class Index
     private const double MinLogValue = -4; // Corresponds to 1/10000
     private const double MaxLogValue = 4;  // Corresponds to 10000
     private float _pointSize = 13.0f;
+    private CancellationToken simulationToken;
+    private CancellationTokenSource? simulationTokenSource;
+    private float _timeStep = 0.0002f;
+    private double _spaceStep = 0.1;
+    private BoundaryType _boundaryType;
 
-    public bool Paused { get; set; }
+    private double _gaussianX0;
+    private double _gaussianY0;
+    private double _gaussianZ0 ;
+    private double _gaussianSigma = 1.0; // Default value
+    private double _gaussianKx;
+    private double _gaussianKy;
+    private double _gaussianKz;
+
+    public bool Paused { get; set; } = true;
     public bool RunningSimulation { get; set; }
     public static int SimulationDelayMilliseconds { get; set; } = 33;
 
@@ -45,28 +55,50 @@ public partial class Index
         _quantumSystem.SingleParticleMass = _mass;
     }
 
+    private async Task RestartSimulation()
+    {
+        if (simulationToken != null)
+            simulationTokenSource?.Cancel();
+
+        simulationTokenSource = new CancellationTokenSource();
+        simulationToken = simulationTokenSource.Token;
+        
+        SetupQuantumSystem();
+        _quantumSystem.InitializeGaussianPacket(_gaussianX0, _gaussianY0, _gaussianZ0, _gaussianSigma, _gaussianKx, _gaussianKy, _gaussianKz);
+        StateHasChanged();
+
+        await StartQuantumSimulationLoop(simulationToken, Paused);
+    }
+
     private void TogglePause() => Paused = !Paused;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            await JSRuntime.InvokeVoidAsync("initializeThreeJs", new { x = dimensions.x, y = dimensions.y, z = dimensions.z }, spacing);
+            await JSRuntime.InvokeVoidAsync("initializeThreeJs", new { x = dimensions.x, y = dimensions.y, z = dimensions.z }, _spaceStep);
             await JSRuntime.InvokeVoidAsync("updatePointSize", _pointSize);
         }
     }
 
     protected override async Task OnInitializedAsync()
     {
-        SetupQuantumSystem();
-        await StartQuantumSimulationLoop(default);
+        await RestartSimulation();
     }
 
     private void SetupQuantumSystem()
     {
-        if (_quantumSystem != null) return;
-        _quantumSystem = new QuantumSystem(dimensions, 0.0002, spacing, BoundaryType.Reflective);
-        _quantumSystem.InitializeGaussianPacket(_quantumSystem.Dimensions.x / 2, _quantumSystem.Dimensions.y / 2, _quantumSystem.Dimensions.z / 2, 1, 0, 0, 0);
+        _quantumSystem = new QuantumSystem(dimensions, _timeStep, _spaceStep, _boundaryType);
+
+        _gaussianX0 = _quantumSystem.Dimensions.x / 2;
+        _gaussianY0 = _quantumSystem.Dimensions.y / 2;
+        _gaussianZ0 = _quantumSystem.Dimensions.z / 2;
+        _gaussianSigma = 1.0; // Default value
+        _gaussianKx = 10;
+        _gaussianKy = 10;
+        _gaussianKz = 10;
+
+        _quantumSystem.InitializeGaussianPacket(_gaussianX0, _gaussianY0, _gaussianZ0, _gaussianSigma, _gaussianKx, _gaussianKy, _gaussianKz);
     }
 
     private async Task StartQuantumSimulationLoop(CancellationToken token, bool paused = true)
@@ -89,7 +121,6 @@ public partial class Index
 
                 _quantumSystem.ApplySingleTimeEvolutionStep();
 
-                UpdateTextDisplay();
                 await Update3DDisplay();
 
                 StateHasChanged();
@@ -101,11 +132,6 @@ public partial class Index
             else
                 await Task.Delay(SimulationDelayMilliseconds, token);
         }
-    }
-
-    private void UpdateTextDisplay()
-    {
-        _wavefunctionValue = _quantumSystem.GetWavefunctionValue(dimensions.x / 2, dimensions.y / 2, dimensions.z / 2);
     }
 
     public float[] GetProbabilityData(QuantumSystem quantumSystem)

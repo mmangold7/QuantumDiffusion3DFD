@@ -195,20 +195,21 @@ function resizeRendererToDisplaySize(renderer) {
 }
 
 function updateThreeJsScene(probabilityData) {
-    // Update the probabilities attribute
-    const probabilities = particleSystem.geometry.attributes.probability.array;
-    let maxProbability = Math.max(...probabilityData);
+    if (particleSystem) {
+        const probabilities = particleSystem.geometry.attributes.probability.array;
+        let maxProbability = Math.max(...probabilityData);
 
-    // If your maxProbability is zero (which can't be used for division), then set it to 1
-    if (maxProbability === 0) maxProbability = 1;
+        // If your maxProbability is zero (which can't be used for division), then set it to 1
+        if (maxProbability === 0) maxProbability = 1;
 
-    for (let i = 0; i < probabilityData.length; i++) {
-        probabilities[i] = probabilityData[i] / maxProbability; // Normalized probability
+        for (let i = 0; i < probabilityData.length; i++) {
+            probabilities[i] = probabilityData[i] / maxProbability; // Normalized probability
+        }
+
+        // Update the maximum probability uniform
+        particleSystem.material.uniforms.maxProbability.value = maxProbability;
+
+        // Mark the probabilities attribute as needing an update
+        particleSystem.geometry.attributes.probability.needsUpdate = true;
     }
-
-    // Update the maximum probability uniform
-    particleSystem.material.uniforms.maxProbability.value = maxProbability;
-
-    // Mark the probabilities attribute as needing an update
-    particleSystem.geometry.attributes.probability.needsUpdate = true;
 }
