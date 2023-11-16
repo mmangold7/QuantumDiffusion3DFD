@@ -20,7 +20,7 @@ function initializeThreeJs(dimensions, spacing) {
 
     const numParticles = dimensions.x * dimensions.y * dimensions.z;
     const positions = new Float32Array(numParticles * 3);
-    const probabilities = new Float32Array(numParticles); // For the probabilities attribute
+    const probabilities = new Float32Array(numParticles);
 
     let index = 0;
     for (let x = 0; x < dimensions.x; x++) {
@@ -31,7 +31,7 @@ function initializeThreeJs(dimensions, spacing) {
                 positions[i3 + 1] = y * spacing * 100; // y
                 positions[i3 + 2] = z * spacing * 100; // z
 
-                probabilities[index] = 1.0; // Initialize with a default value
+                probabilities[index] = 1.0;
 
                 index++;
             }
@@ -47,7 +47,7 @@ function initializeThreeJs(dimensions, spacing) {
             color: { value: new THREE.Color(0xff0000) },
             maxProbability: { value: 1.0 },
             probabilities: { value: [] },
-            pointSize: { value: 10.0 } // Default point size
+            pointSize: { value: 10.0 }
         },
         vertexShader: `
         attribute float probability;
@@ -199,17 +199,14 @@ function updateThreeJsScene(probabilityData) {
         const probabilities = particleSystem.geometry.attributes.probability.array;
         let maxProbability = Math.max(...probabilityData);
 
-        // If your maxProbability is zero (which can't be used for division), then set it to 1
+        // Zero can't be used for division
         if (maxProbability === 0) maxProbability = 1;
 
         for (let i = 0; i < probabilityData.length; i++) {
             probabilities[i] = probabilityData[i] / maxProbability; // Normalized probability
         }
 
-        // Update the maximum probability uniform
         particleSystem.material.uniforms.maxProbability.value = maxProbability;
-
-        // Mark the probabilities attribute as needing an update
         particleSystem.geometry.attributes.probability.needsUpdate = true;
     }
 }

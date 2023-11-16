@@ -58,7 +58,6 @@ public class QuantumSystem
     public void ApplySingleTimeEvolutionStep()
     {
         Complex[,,] newWavefunction = new Complex[Dimensions.x, Dimensions.y, Dimensions.z];
-        //laplacianWavefunction = new Complex[Dimensions.x, Dimensions.y, Dimensions.z];
 
         for (int x = 0; x < Dimensions.x; x++)
         {
@@ -130,7 +129,7 @@ public class QuantumSystem
                 break;
             case BoundaryType.Absorbing:
                 if (a < 0 || a >= b)
-                    return -1; // Indicates an absorbing boundary
+                    return -1;
                 break;
         }
         return a;
@@ -180,10 +179,6 @@ public class QuantumSystem
 
     private double CalculateNormalizationConstant(double sigma)
     {
-        // Approximate the normalization constant
-        // This can be a complex calculation depending on the grid size and sigma
-        // Here's a simplified approach for an example
-
         double sum = 0.0;
         double temp;
 
