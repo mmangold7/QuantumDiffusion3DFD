@@ -162,11 +162,6 @@ public partial class Index
         }
     }
 
-    //private async Task ToggleControlPanel()
-    //{
-    //    await JSRuntime.InvokeVoidAsync("toggleControls");
-    //}
-
     private bool _areControlsVisible = true; // Controls are hidden by default
 
     private string ToggleText => _areControlsVisible ? "Hide Controls" : "Show Controls";
@@ -174,6 +169,11 @@ public partial class Index
     private void ToggleControlsVisibility()
     {
         _areControlsVisible = !_areControlsVisible;
+    }
+
+    private string GetControlPanelClass()
+    {
+        return _areControlsVisible ? "expanded" : "collapsed";
     }
 
     public float[] GetProbabilityData(QuantumSystem quantumSystem)

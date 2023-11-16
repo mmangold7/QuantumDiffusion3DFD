@@ -2,6 +2,7 @@
 
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background-color: #1C1B22;
 }
 
 h1:focus {
@@ -24,6 +25,7 @@ a, .btn-link {
 
 .content {
     padding-top: 1.1rem;
+    background-color: #1C1B22;
 }
 
 .valid.modified:not([type=checkbox]) {
@@ -103,42 +105,53 @@ a, .btn-link {
 .simulation-container {
     display: flex;
     flex-direction: column;
-    align-items: center; /* Center children on the cross axis */
+    align-items: center;
+    background-color: #1C1B22;
 }
 
 .control-panel {
     background: #fff;
     padding: 10px;
-    border: 1px solid #ccc;
+    border: 1px solid black;
     border-radius: 4px;
-    width: 100%; /* Full width on smaller screens */
     margin-bottom: 10px;
-    box-sizing: border-box; /* Include padding in the width */
+    box-sizing: border-box;
+    background-color: #2B2A33;
+    color: white;
 }
 
     .control-panel .controls {
-        display: none; /* Hidden by default, shown when the button is clicked */
+        display: none;
     }
 
     .control-panel button {
-        display: block; /* Ensure the button takes full width */
+        display: block;
         width: 100%;
-        margin-bottom: 10px; /* Space below the toggle button */
+        margin-bottom: 10px;
+        color: white;
+        background-color: black;
+        border: 1px solid black;
+        border-radius: 4px;
     }
 
-.slider {
-    margin-bottom: 20px;
+    .control-panel.expanded {
+        max-width: 300px;
+        width: 100%;
+    }
+
+    .control-panel.collapsed {
+        width: 80px;
+    }
+
+.slider label {
+    display: block;
+    margin-top: 10px;
 }
 
-    .slider label {
-        display: block; /* Stack label and slider */
-        margin-bottom: 5px; /* Space between label and slider */
-    }
-
     .slider .value-display {
-        display: block; /* Value display below the label */
+        display: block;
         text-align: right;
-        margin-bottom: 5px; /* Space between value display and slider */
+        margin-bottom: 5px;
     }
 
     .slider input[type="range"] {
@@ -146,52 +159,67 @@ a, .btn-link {
     }
 
 .canvas-container {
-    width: 100%; /* Full width */
-    margin-top: 10px; /* Space above the canvas */
+    position: relative;
+    width: 100%;
 }
 
 #threejs-canvas {
     width: 100%;
-    height: auto; /* Adjust height automatically based on the aspect ratio */
+    height: auto;
 }
 
 @media (min-width: 768px) {
     .simulation-container {
         flex-direction: row;
-        align-items: flex-start; /* Align to the top on wider screens */
+        align-items: flex-start;
     }
 
     .control-panel {
-        width: 200px; /* Fixed width for control panel on larger screens */
-        margin-right: 20px; /* Space between control panel and canvas */
-        order: -1; /* Ensure control panel comes first */
+        width: 200px;
+        margin-right: 20px;
+        order: -1;
     }
 
         .control-panel .controls {
-            display: block; /* Always show controls on larger screens */
+            display: block;
         }
 
     .canvas-container {
-        flex-grow: 1; /* Canvas takes remaining space */
-        margin-top: 0; /* No space above the canvas */
+        flex-grow: 1;
+        margin-top: 0;
     }
 
     #threejs-canvas {
-        /* Set height based on the aspect ratio and the actual width of the canvas container */
-        height: calc(var(--canvas-width) * (9 / 16));
+        height: calc(var(--canvas-width) * (16 / 16));
+    }
+
+    .control-panel.collapsed .controls {
+        display: none;
+    }
+
+    .control-panel.collapsed .toggle-controls {
+        /* Styles specifically for the toggle button in the collapsed state */
+    }
+
+    .control-panel.collapsed ~ .canvas-container {
+        flex-grow: 1;
     }
 }
 
 .overlay-text {
-    /*position: absolute;*/
-    top: 10px;
-    left: 10px;
+    position: absolute;
+    top: 0;
+    left: 0;
     color: white;
-    font-size: 0.75em; /* Smaller text */
+    padding: 10px;
+    z-index: 10;
 }
 
+    .overlay-text p {
+        margin-bottom: .5rem;
+    }
+
 input[type="number"],input[type="range"],select {
-    width: 100%;
     box-sizing: border-box;
 }
 
@@ -202,22 +230,32 @@ input[type="number"],input[type="range"],select {
 }
 
 .toggle-controls {
-    display: block; /* Make sure it's block to have a height */
-    width: 100%; /* Take the full width */
-    padding: 10px; /* Add some padding for visibility */
-    background-color: #f0f0f0; /* A light background color */
-    border: 1px solid #ccc; /* A border to distinguish the button */
-    cursor: pointer; /* Change cursor to pointer on hover */
-    margin-bottom: 10px; /* Add some margin at the bottom */
+    display: block;
+    width: 100%;
+    padding: 10px;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    cursor: pointer;
+    margin-bottom: 10px;
+    text-align: center;
 }
 
-/* Additional styles for responsive text inputs */
-.control-item input[type="number"],
 .control-item select {
-    margin-top: 5px;
+    width: 100%;
 }
 
-/* Add this to keep the label and value display on the same line */
+.control-item input[type="number"] {
+    width: 100%;
+}
+
+.control-item label {
+    margin-top: 10px;
+}
+
+.control-item p {
+    margin-top: 10px;
+}
+
 .slider .value-display {
     margin-left: auto;
 }
