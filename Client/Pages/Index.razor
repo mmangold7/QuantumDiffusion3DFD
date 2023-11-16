@@ -23,8 +23,8 @@
                 <button @onclick="RestartSimulation">Reset</button>
             </div>
             <div class="control-item">
-                <p>Original Energy: @_originalTotalEnergy</p>
-                <p>Current Energy: @_currentTotalEnergy</p>
+                <p>Original Energy: @_originalTotalEnergy.ToString("0.00")</p>
+                <p>Current Energy: @_currentTotalEnergy.ToString("0.00")</p>
             </div>
             <div class="slider">
                 <label for="timeStepSlider">Time Step: <span class="value-display">@TimeStep.ToString("0.0000")</span></label>

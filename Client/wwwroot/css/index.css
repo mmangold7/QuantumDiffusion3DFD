@@ -1,0 +1,110 @@
+@import url('open-iconic/font/css/open-iconic-bootstrap.min.css');
+
+html, body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background-color: #1C1B22;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.simulation-container {
+    display: flex;
+    flex-direction: column;
+    /*align-items: center;*/
+    height: 100vh;
+    overflow: hidden;
+}
+
+.control-panel {
+    background-color: #2B2A33;
+    color: white;
+    border-right: 1px solid #444;
+    padding: 10px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    height: 100%;
+}
+
+    .control-panel .controls {
+        display: none; /* Hidden initially */
+    }
+
+    .control-panel.expanded {
+        width: 100%;
+    }
+
+    .control-panel.collapsed {
+        width: 100%;
+        height: 80px;
+    }
+
+
+    .control-panel button {
+        width: 100%;
+        background-color: black;
+        color: white;
+        border: 1px solid black;
+        border-radius: 4px;
+        padding: 10px;
+        margin-bottom: 10px;
+        cursor: pointer;
+    }
+
+.control-item, .slider {
+    margin-top: 10px;
+}
+
+    .slider label {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .slider input[type="range"], .control-item input[type="number"], .control-item select {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+.overlay-text {
+    position: absolute;
+    top: 0;
+    left: 0;
+    color: white;
+    padding: 10px;
+    z-index: 10;
+}
+
+.canvas-container {
+    position: relative;
+    width: 100%;
+    height: 50vh;
+}
+
+#threejs-canvas {
+    width: 100%;
+    height: 50vh;
+}
+
+@media (min-width: 768px) {
+    .control-panel.collapsed {
+        width: 80px;
+    }
+
+    .control-panel.expanded {
+        max-width: 300px;
+    }
+
+    .simulation-container {
+        flex-direction: row;
+    }
+
+    .canvas-container {
+        height: 100%;
+    }
+
+    #threejs-canvas {
+        height: 100%;
+    }
+}
