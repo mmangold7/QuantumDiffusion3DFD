@@ -1,8 +1,7 @@
 ﻿import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
-var scene, camera, renderer, particleSystem;
-var controls;
+var scene, camera, renderer, particleSystem, controls;
 
 function initializeThreeJs(dimensions, spacing) {
     const canvas = document.getElementById('threejs-canvas');
@@ -23,11 +22,15 @@ function initializeThreeJs(dimensions, spacing) {
     const fov = 75;
     const aspect = canvas.clientWidth / canvas.clientHeight;
     const near = 0.1;
-    const far = 1000;
+    const far = 500;
     camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-    camera.position.z = 150;
-
     controls = new OrbitControls(camera, renderer.domElement);
+    camera.position.x = position.x;
+    camera.position.x = position.y;
+    camera.position.x = position.z + 100;
+    controls.update();
+    controls.target.set(position.x, position.y, position.z);
+
     controls.enableDamping = true;
     controls.dampingFactor = 0.1;
     controls.rotateSpeed = 0.1;
@@ -36,88 +39,31 @@ function initializeThreeJs(dimensions, spacing) {
 
     scene = new THREE.Scene();
 
-    const numParticles = dimensions.x * dimensions.y * dimensions.z;
-    const positions = new Float32Array(numParticles * 3);
-    const probabilities = new Float32Array(numParticles);
-
-    let index = 0;
     for (let x = 0; x < dimensions.x; x++) {
         for (let y = 0; y < dimensions.y; y++) {
             for (let z = 0; z < dimensions.z; z++) {
-                const i3 = index * 3;
-                positions[i3 + 0] = x * spacing * spacingScaleFactor; // x
-                positions[i3 + 1] = y * spacing * spacingScaleFactor; // y
-                positions[i3 + 2] = z * spacing * spacingScaleFactor; // z
+                const probability = 0.5;
 
-                probabilities[index] = 1.0;
+                const cubeSize = 10;
+                const cubeGeometry = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
+                const color = interpolateColor(probability);
+                const cubeMaterial = new THREE.MeshBasicMaterial({
+                    color: color,
+                    transparent: true,
+                    opacity: probability // Opacity based on probability
+                });
 
-                index++;
+                const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+                cube.position.set(
+                    x * spacing * spacingScaleFactor,
+                    y * spacing * spacingScaleFactor,
+                    z * spacing * spacingScaleFactor
+                );
+
+                scene.add(cube);
             }
         }
     }
-
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('probability', new THREE.BufferAttribute(probabilities, 1));
-
-    const shaderMaterial = new THREE.ShaderMaterial({
-        uniforms: {
-            color: { value: new THREE.Color(0xff0000) },
-            maxProbability: { value: 1.0 },
-            probabilities: { value: [] },
-            pointSize: { value: 10.0 }
-        },
-        vertexShader: `
-        attribute float probability;
-        uniform float maxProbability;
-        uniform float pointSize; // Use uniform for point size
-        varying float vAlpha;
-        varying float vProbability; // Declare vProbability as varying
-
-        void main() {
-            vAlpha = probability / maxProbability;
-            vProbability = probability; // Pass the probability to the fragment shader
-
-            // Calculate distance from the camera
-            vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-            float distance = length(mvPosition.xyz);
-
-            // Adjust point size based on distance
-            gl_PointSize = pointSize * vAlpha / distance * 300.0; // Adjust factor as needed
-
-            gl_Position = projectionMatrix * mvPosition;
-        }
-    `,
-        fragmentShader: `
-        varying float vProbability;
-
-        vec3 interpolateColor(float value) {
-            vec3 colorStops[7] = vec3[](vec3(1, 0, 0), vec3(1, 0.5, 0), vec3(1, 1, 0), vec3(0, 1, 0), vec3(0, 0, 1), vec3(0.29, 0, 0.51), vec3(0.56, 0, 1)); // ROYGBIV
-            float scaledValue = value * 6.0;
-            int index = int(scaledValue);
-            vec3 color1 = colorStops[index % 7];
-            vec3 color2 = colorStops[(index + 1) % 7];
-            float frac = fract(scaledValue);
-            return mix(color1, color2, frac);
-        }
-
-        void main() {
-            if (dot(gl_PointCoord - vec2(0.5), gl_PointCoord - vec2(0.5)) > 0.25) {
-                discard;
-            }
-            
-            vec3 color = interpolateColor(vProbability);
-            gl_FragColor = vec4(color, 1.0);
-        }
-    `,
-        blending: THREE.AdditiveBlending,
-        depthTest: false,
-        transparent: true,
-        vertexColors: true
-    });
-
-    particleSystem = new THREE.Points(geometry, shaderMaterial);
-    scene.add(particleSystem);
 
     const boxGeometry = new THREE.BoxGeometry(dimensions.x * singleDimensionScaleFactor, dimensions.y * singleDimensionScaleFactor, dimensions.z * singleDimensionScaleFactor);
     const edgesGeometry = new THREE.EdgesGeometry(boxGeometry);
@@ -134,6 +80,34 @@ function initializeThreeJs(dimensions, spacing) {
     //scene.add(arrow);
 
     animate();
+}
+
+function interpolateColor(value) {
+    // Function to return a color based on the value
+    // Modify this function to get the desired color mapping
+    const hue = (1 - value) * 240; // From blue (low) to red (high)
+    return `hsl(${hue}, 100%, 50%)`;
+}
+
+function interpolateColorRainbow(value) {
+    const colorStops = [
+        new THREE.Color(1, 0, 0), // Red
+        new THREE.Color(1, 0.5, 0), // Orange
+        new THREE.Color(1, 1, 0), // Yellow
+        new THREE.Color(0, 1, 0), // Green
+        new THREE.Color(0, 0, 1), // Blue
+        new THREE.Color(0.29, 0, 0.51), // Indigo
+        new THREE.Color(0.56, 0, 1) // Violet
+    ];
+
+    let scaledValue = value * (colorStops.length - 1);
+    let index = Math.floor(scaledValue);
+    let frac = scaledValue - index;
+
+    let color1 = colorStops[index];
+    let color2 = colorStops[Math.min(index + 1, colorStops.length - 1)];
+
+    return color1.clone().lerp(color2, frac);
 }
 
 function animate() {
@@ -163,20 +137,36 @@ function resizeRendererToDisplaySize(renderer) {
 }
 
 function updateThreeJsScene(probabilityData) {
-    if (particleSystem) {
-        const probabilities = particleSystem.geometry.attributes.probability.array;
-        let maxProbability = Math.max(...probabilityData);
+    let maxProbability = Math.max(...probabilityData);
+    if (maxProbability === 0) maxProbability = 1; // Avoid division by zero
 
-        // Zero can't be used for division
-        if (maxProbability === 0) maxProbability = 1;
+    let cubeIndex = 0;
 
-        for (let i = 0; i < probabilityData.length; i++) {
-            probabilities[i] = probabilityData[i] / maxProbability; // Normalized probability
+    scene.traverse(function (object) {
+        if (object.isMesh) {
+            const probability = probabilityData[cubeIndex] / maxProbability;
+            const color = interpolateColor(probability);
+            const opacity = probabilityToOpacity(probability);
+
+            object.material.color.set(color);
+            object.material.opacity = opacity;
+            object.material.transparent = true;
+            object.material.blending = THREE.AdditiveBlending;
+            object.material.needsUpdate = true;
+
+            cubeIndex++;
         }
+    });
+}
 
-        particleSystem.material.uniforms.maxProbability.value = maxProbability;
-        particleSystem.geometry.attributes.probability.needsUpdate = true;
-    }
+function probabilityToOpacity(probability) {
+    // Adjust this function to fine-tune how opacity scales with probability
+    //let opacity = probability; // Direct linear mapping
+    //let opacity = Math.sqrt(probability); // Square root mapping
+    //let opacity = probability * probability; // Squaring the probability
+    //let opacity = Math.log(probability + 1) / Math.log(2); // Log base 2
+    let opacity = 1 / (1 + Math.exp(-10 * (probability - 0.5))); // Sigmoid function
+    return opacity;
 }
 
 function updatePointSize(newPointSize) {

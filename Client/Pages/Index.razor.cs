@@ -57,14 +57,9 @@ public partial class Index
         _gaussianY0 = Dimensions.y / 2.0;
         _gaussianZ0 = Dimensions.z / 2.0;
         _gaussianSigma = 1.0;
-        _gaussianKx = 20;
-        _gaussianKy = 20;
-        _gaussianKz = 20;
-
-        _cancellationTokenSource = new CancellationTokenSource();
-
-        await ResetSimAndGraphics();
-        await StartSimulation(_cancellationTokenSource.Token);
+        _gaussianKx = 10;
+        _gaussianKy = 10;
+        _gaussianKz = 10;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -75,6 +70,8 @@ public partial class Index
                 new { Dimensions.x, Dimensions.y, Dimensions.z }, _spaceStep);
 
             await JSRuntime.InvokeVoidAsync("QuantumInterop.updatePointSize", _pointSize);
+
+            await RestartSimulation();
         }
     }
 
@@ -95,6 +92,8 @@ public partial class Index
     {
         var newSystem = SetupQuantumSystem();
         _currentProbabilityData = newSystem.GetProbabilityData();
+        _frameCount = 0;
+        _frameRate = 0;
         await Update3DDisplay(_currentProbabilityData);
         StateHasChanged();
     }
