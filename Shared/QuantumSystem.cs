@@ -4,13 +4,12 @@ namespace QuantumDiffusion3DFD.Shared;
 
 public class QuantumSystem
 {
-    private Complex[,,] wavefunction;
-    private Complex[,,] laplacianWavefunction;
-
-    private double[,,] potential;
-    private double timeStep;
-    private double deltaX, deltaY, deltaZ;
-    private BoundaryType boundaryType;
+    private Complex[,,] _wavefunction;
+    private readonly Complex[,,] _laplacianWavefunction;
+    private readonly double[,,] _potential;
+    private readonly double _timeStep;
+    private readonly double _deltaX;
+    private readonly BoundaryType _boundaryType;
 
     public double Hbar { get; set; } = 1.0;
     public double SingleParticleMass { get; set; } = 1.0;
@@ -19,15 +18,14 @@ public class QuantumSystem
     public QuantumSystem((int x, int y, int z) dimensions, double timeStep, double spaceStep, BoundaryType boundaryType)
     {
         Dimensions = dimensions;
-        this.timeStep = timeStep;
-        deltaX = spaceStep;
-        deltaY = spaceStep;
-        deltaY = spaceStep;
-        this.boundaryType = boundaryType;
 
-        wavefunction = new Complex[dimensions.x, dimensions.y, dimensions.z];
-        laplacianWavefunction = new Complex[dimensions.x, dimensions.y, dimensions.z];
-        potential = new double[dimensions.x, dimensions.y, dimensions.z];
+        _timeStep = timeStep;
+        _deltaX = spaceStep;
+        _boundaryType = boundaryType;
+
+        _wavefunction = new Complex[dimensions.x, dimensions.y, dimensions.z];
+        _laplacianWavefunction = new Complex[dimensions.x, dimensions.y, dimensions.z];
+        _potential = new double[dimensions.x, dimensions.y, dimensions.z];
     }
 
     public double CalculateTotalEnergy()
@@ -40,13 +38,13 @@ public class QuantumSystem
             {
                 for (int z = 0; z < Dimensions.z; z++)
                 {
-                    Complex psi = wavefunction[x, y, z];
+                    Complex psi = _wavefunction[x, y, z];
                     double probabilityDensity = psi.Magnitude * psi.Magnitude;
 
-                    Complex laplacianPsi = laplacianWavefunction[x, y, z]; // Use the stored Laplacian
+                    Complex laplacianPsi = _laplacianWavefunction[x, y, z]; // Use the stored Laplacian
                     double kineticEnergy = -(Hbar * Hbar / (2 * SingleParticleMass)) * (laplacianPsi * Complex.Conjugate(psi)).Real;
 
-                    double potentialEnergy = potential[x, y, z] * probabilityDensity;
+                    double potentialEnergy = _potential[x, y, z] * probabilityDensity;
                     totalEnergy += kineticEnergy + potentialEnergy;
                 }
             }
@@ -65,26 +63,26 @@ public class QuantumSystem
             {
                 for (int z = 0; z < Dimensions.z; z++)
                 {
-                    laplacianWavefunction[x, y, z] = CalculateLaplacian(wavefunction, x, y, z, boundaryType);
+                    _laplacianWavefunction[x, y, z] = CalculateLaplacian(_wavefunction, x, y, z, _boundaryType);
 
-                    Complex timeDerivative = (-Hbar * Hbar / (2 * SingleParticleMass)) * laplacianWavefunction[x, y, z] + potential[x, y, z] * wavefunction[x, y, z];
-                    newWavefunction[x, y, z] = wavefunction[x, y, z] - (Complex.ImaginaryOne / Hbar) * timeDerivative * timeStep;
+                    Complex timeDerivative = (-Hbar * Hbar / (2 * SingleParticleMass)) * _laplacianWavefunction[x, y, z] + _potential[x, y, z] * _wavefunction[x, y, z];
+                    newWavefunction[x, y, z] = _wavefunction[x, y, z] - (Complex.ImaginaryOne / Hbar) * timeDerivative * _timeStep;
                 }
             }
         }
 
-        wavefunction = newWavefunction;
+        _wavefunction = newWavefunction;
     }
 
     private Complex CalculateLaplacian(Complex[,,] wavefunction, int x, int y, int z, BoundaryType boundaryType)
     {
-        double dx2 = deltaX * deltaX; // Assuming deltaX is the grid spacing
+        var dx2 = _deltaX * _deltaX; // Assuming deltaX is the grid spacing
 
-        Complex d2Psi_dx2 = GetSecondDerivative(wavefunction, x, y, z, 0, boundaryType, dx2);
-        Complex d2Psi_dy2 = GetSecondDerivative(wavefunction, x, y, z, 1, boundaryType, dx2);
-        Complex d2Psi_dz2 = GetSecondDerivative(wavefunction, x, y, z, 2, boundaryType, dx2);
+        var d2PsiDx2 = GetSecondDerivative(wavefunction, x, y, z, 0, boundaryType, dx2);
+        var d2PsiDy2 = GetSecondDerivative(wavefunction, x, y, z, 1, boundaryType, dx2);
+        var d2PsiDz2 = GetSecondDerivative(wavefunction, x, y, z, 2, boundaryType, dx2);
 
-        return d2Psi_dx2 + d2Psi_dy2 + d2Psi_dz2;
+        return d2PsiDx2 + d2PsiDy2 + d2PsiDz2;
     }
 
     private Complex GetSecondDerivative(Complex[,,] wavefunction, int x, int y, int z, int dimension, BoundaryType boundaryType, double dx2)
@@ -119,7 +117,7 @@ public class QuantumSystem
         return (valuePlus - 2 * wavefunction[x, y, z] + valueMinus) / dx2;
     }
 
-    private int Mod(int a, int b, BoundaryType boundaryType)
+    private static int Mod(int a, int b, BoundaryType boundaryType)
     {
         switch (boundaryType)
         {
@@ -131,21 +129,23 @@ public class QuantumSystem
                 if (a < 0 || a >= b)
                     return -1;
                 break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(boundaryType), boundaryType, null);
         }
         return a;
     }
 
     public double[,,] CalculateProbabilityDensity()
     {
-        double[,,] probabilityDensity = new double[Dimensions.x, Dimensions.y, Dimensions.z];
+        var probabilityDensity = new double[Dimensions.x, Dimensions.y, Dimensions.z];
 
-        for (int x = 0; x < Dimensions.x; x++)
+        for (var x = 0; x < Dimensions.x; x++)
         {
-            for (int y = 0; y < Dimensions.y; y++)
+            for (var y = 0; y < Dimensions.y; y++)
             {
-                for (int z = 0; z < Dimensions.z; z++)
+                for (var z = 0; z < Dimensions.z; z++)
                 {
-                    Complex psi = wavefunction[x, y, z];
+                    var psi = _wavefunction[x, y, z];
                     probabilityDensity[x, y, z] = psi.Magnitude * psi.Magnitude; // |psi|^2
                 }
             }
@@ -156,22 +156,22 @@ public class QuantumSystem
 
     public void InitializeGaussianPacket(double x0, double y0, double z0, double sigma, double kx, double ky, double kz)
     {
-        double A = CalculateNormalizationConstant(sigma);
+        var normalizedAmplitude = CalculateNormalizationConstant(sigma);
 
-        for (int x = 0; x < Dimensions.x; x++)
+        for (var x = 0; x < Dimensions.x; x++)
         {
-            for (int y = 0; y < Dimensions.y; y++)
+            for (var y = 0; y < Dimensions.y; y++)
             {
                 for (int z = 0; z < Dimensions.z; z++)
                 {
-                    double exponent = -((x - x0) * (x - x0) + (y - y0) * (y - y0) + (z - z0) * (z - z0)) / (4 * sigma * sigma);
-                    double phase = kx * x + ky * y + kz * z;
+                    var exponent = -((x - x0) * (x - x0) + (y - y0) * (y - y0) + (z - z0) * (z - z0)) / (4 * sigma * sigma);
+                    var phase = kx * x + ky * y + kz * z;
 
-                    double realPart = Math.Exp(exponent) * Math.Cos(phase);
-                    double imagPart = Math.Exp(exponent) * Math.Sin(phase);
+                    var realPart = Math.Exp(exponent) * Math.Cos(phase);
+                    var imagPart = Math.Exp(exponent) * Math.Sin(phase);
 
-                    wavefunction[x, y, z] = new Complex(realPart, imagPart) * A;
-                    laplacianWavefunction[x, y, z] = CalculateLaplacian(wavefunction, x, y, z, boundaryType);
+                    _wavefunction[x, y, z] = new Complex(realPart, imagPart) * normalizedAmplitude;
+                    _laplacianWavefunction[x, y, z] = CalculateLaplacian(_wavefunction, x, y, z, _boundaryType);
                 }
             }
         }
@@ -179,18 +179,17 @@ public class QuantumSystem
 
     private double CalculateNormalizationConstant(double sigma)
     {
-        double sum = 0.0;
-        double temp;
+        var sum = 0.0;
 
-        for (int x = 0; x < Dimensions.x; x++)
+        for (var x = 0; x < Dimensions.x; x++)
         {
-            for (int y = 0; y < Dimensions.y; y++)
+            for (var y = 0; y < Dimensions.y; y++)
             {
-                for (int z = 0; z < Dimensions.z; z++)
+                for (var z = 0; z < Dimensions.z; z++)
                 {
-                    temp = Math.Exp(-((x - Dimensions.x / 2.0) * (x - Dimensions.x / 2.0) +
-                                      (y - Dimensions.y / 2.0) * (y - Dimensions.y / 2.0) +
-                                      (z - Dimensions.z / 2.0) * (z - Dimensions.z / 2.0)) / (4 * sigma * sigma));
+                    var temp = Math.Exp(-((x - Dimensions.x / 2.0) * (x - Dimensions.x / 2.0) +
+                                          (y - Dimensions.y / 2.0) * (y - Dimensions.y / 2.0) +
+                                          (z - Dimensions.z / 2.0) * (z - Dimensions.z / 2.0)) / (4 * sigma * sigma));
                     sum += temp * temp;
                 }
             }
@@ -204,13 +203,13 @@ public class QuantumSystem
         var probabilityDensity = CalculateProbabilityDensity();
         var flattenedData = new List<float>();
 
-        for (int x = 0; x < Dimensions.x; x++)
+        for (var x = 0; x < Dimensions.x; x++)
         {
-            for (int y = 0; y < Dimensions.y; y++)
+            for (var y = 0; y < Dimensions.y; y++)
             {
-                for (int z = 0; z < Dimensions.z; z++)
+                for (var z = 0; z < Dimensions.z; z++)
                 {
-                    float probability = (float)probabilityDensity[x, y, z];
+                    var probability = (float)probabilityDensity[x, y, z];
 
                     // Check for invalid numbers
                     if (float.IsNaN(probability) || float.IsInfinity(probability))
@@ -225,8 +224,8 @@ public class QuantumSystem
         }
 
         // Optional: Normalize the data
-        float maxProbability = flattenedData.Any() ? flattenedData.Max() : 0.0f;
-        for (int i = 0; i < flattenedData.Count; i++)
+        var maxProbability = flattenedData.Any() ? flattenedData.Max() : 0.0f;
+        for (var i = 0; i < flattenedData.Count; i++)
         {
             flattenedData[i] /= maxProbability;
         }
