@@ -198,6 +198,41 @@ public class QuantumSystem
 
         return 1.0 / Math.Sqrt(sum);
     }
+
+    public float[] GetProbabilityData()
+    {
+        var probabilityDensity = CalculateProbabilityDensity();
+        var flattenedData = new List<float>();
+
+        for (int x = 0; x < Dimensions.x; x++)
+        {
+            for (int y = 0; y < Dimensions.y; y++)
+            {
+                for (int z = 0; z < Dimensions.z; z++)
+                {
+                    float probability = (float)probabilityDensity[x, y, z];
+
+                    // Check for invalid numbers
+                    if (float.IsNaN(probability) || float.IsInfinity(probability))
+                    {
+                        //Logger.LogWarning($"Invalid probability value detected at ({x}, {y}, {z}): {probability}");
+                        probability = 0;  // Or handle this case as appropriate
+                    }
+
+                    flattenedData.Add(probability);
+                }
+            }
+        }
+
+        // Optional: Normalize the data
+        float maxProbability = flattenedData.Any() ? flattenedData.Max() : 0.0f;
+        for (int i = 0; i < flattenedData.Count; i++)
+        {
+            flattenedData[i] /= maxProbability;
+        }
+
+        return flattenedData.ToArray();
+    }
 }
 //public Complex GetWavefunctionValue(int x, int y, int z)
 //    {

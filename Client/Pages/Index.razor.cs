@@ -6,12 +6,6 @@ namespace QuantumDiffusion3DFD.Client.Pages;
 
 public partial class Index
 {
-    private QuantumSystem _quantumSystem;
-    private (int x, int y, int z) dimensions = new(10, 10, 10);
-    private BoundaryType _boundaryType;
-    private double _hbar = 1.0;
-    private double _mass = 1.0;
-
     private double _gaussianX0;
     private double _gaussianY0;
     private double _gaussianZ0;
@@ -19,65 +13,161 @@ public partial class Index
     private double _gaussianKx;
     private double _gaussianKy;
     private double _gaussianKz;
+
+    private double _mass = 1.0;
+    private double _hbar = 1.0;
+
+    private static readonly (int x, int y, int z) Dimensions = new(10, 10, 10);
+    private static float _timeStep = 0.0002f;
+    private static double _spaceStep = 0.1;
+    private static BoundaryType _boundaryType;
+    private QuantumSystem _quantumSystem = new(Dimensions, _timeStep, _spaceStep, _boundaryType);
+
     private double _originalTotalEnergy;
     private double _currentTotalEnergy;
-
-    private float _pointSize = 13.0f;
-    private float _timeStep = 0.0002f;
-    private double _spaceStep = 0.1;
-    private double TimeStep => Math.Pow(10, _logTimeStepPosition);
-    private double SpaceStep => Math.Pow(10, _logSpaceStepPosition);
-
+    private float[]? _currentProbabilityData;
+    private float _pointSize = 21.0f;
     private int _frameCount;
     private double _frameRate;
-    public static int MaxFrameRateMillis { get; set; } = 33;
-    public bool Paused { get; set; } = true;
-    public bool RunningSimulation { get; set; }
+    private DateTime _lastFrameTime = DateTime.UtcNow;
 
-    private CancellationToken? simulationToken;
-    private CancellationTokenSource? simulationTokenSource;
     private bool _areControlsVisible = true;
     private double _logTimeStepPosition;
     private double _logSpaceStepPosition;
-    private double _hbarSliderPosition = 0; // logarithmic scale
-    private double _massSliderPosition = 0; // logarithmic scale
-    private const double MinPointLogValue = -4; // Corresponds to 1/10000
+    private double _hbarSliderPosition; // logarithmic scale
+    private double _massSliderPosition; // logarithmic scale
+    private const double MinPointLogValue = -4; // 1/10000
     private const double MaxPointLogValue = 4;  // Corresponds to 10000
     private const double MinTimeLogValue = -5; // Corresponds to 10^-5 = 0.00001
     private const double MaxTimeLogValue = -1; // Corresponds to 10^-1 = 0.1
     private const double MinSpaceLogValue = -3; // Corresponds to 10^-3 = 0.001
     private const double MaxSpaceLogValue = 1;  // Corresponds to 10^1 = 10
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            await JSRuntime.InvokeVoidAsync("QuantumInterop.initializeThreeJs",
-                new { x = dimensions.x, y = dimensions.y, z = dimensions.z }, _spaceStep);
+    private CancellationTokenSource _cancellationTokenSource = new();
 
-            await JSRuntime.InvokeVoidAsync("QuantumInterop.updatePointSize", _pointSize);
-        }
-    }
+    private double TimeStep => Math.Pow(10, _logTimeStepPosition);
+    private double SpaceStep => Math.Pow(10, _logSpaceStepPosition);
+    public static int MaxFrameRateMillis { get; set; } = 33;
+    public bool Paused { get; set; } = true;
+    public bool IsSimulationRunning { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        _gaussianX0 = dimensions.x / 2;
-        _gaussianY0 = dimensions.y / 2;
-        _gaussianZ0 = dimensions.z / 2;
+        _gaussianX0 = Dimensions.x / 2.0;
+        _gaussianY0 = Dimensions.y / 2.0;
+        _gaussianZ0 = Dimensions.z / 2.0;
         _gaussianSigma = 1.0;
         _gaussianKx = 20;
         _gaussianKy = 20;
         _gaussianKz = 20;
 
-        await RestartSimulation();
-    }
-    private string ToggleText => _areControlsVisible ? "Hide Controls" : "Show Controls";
+        _cancellationTokenSource = new CancellationTokenSource();
 
-    private async Task UpdateProbabilitySphereScale(ChangeEventArgs e)
-    {
-        _pointSize = float.Parse(e.Value.ToString());
-        await JSRuntime.InvokeVoidAsync("QuantumInterop.updatePointSize", _pointSize);
+        await ResetSimAndGraphics();
+        await StartSimulation(_cancellationTokenSource.Token);
     }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("QuantumInterop.initializeThreeJs",
+                new { Dimensions.x, Dimensions.y, Dimensions.z }, _spaceStep);
+
+            await JSRuntime.InvokeVoidAsync("QuantumInterop.updatePointSize", _pointSize);
+        }
+    }
+
+    private QuantumSystem SetupQuantumSystem()
+    {
+        _quantumSystem = new QuantumSystem(Dimensions, _timeStep, _spaceStep, _boundaryType);
+
+        _quantumSystem.InitializeGaussianPacket(
+            _gaussianX0, _gaussianY0, _gaussianZ0, _gaussianSigma, _gaussianKx, _gaussianKy, _gaussianKz);
+
+        _originalTotalEnergy = _quantumSystem.CalculateTotalEnergy();
+        _currentTotalEnergy = _quantumSystem.CalculateTotalEnergy();
+
+        return _quantumSystem;
+    }
+
+    private async Task ResetSimAndGraphics()
+    {
+        var newSystem = SetupQuantumSystem();
+        _currentProbabilityData = newSystem.GetProbabilityData();
+        await Update3DDisplay(_currentProbabilityData);
+        StateHasChanged();
+    }
+
+    private async Task StartSimulation(CancellationToken token)
+    {
+        IsSimulationRunning = true;
+        while (!token.IsCancellationRequested)
+        {
+            if (Paused)
+            {
+                await Task.Delay(100, token); // Small delay to reduce CPU usage
+                continue;
+            }
+
+            var currentFrameTime = DateTime.UtcNow;
+            var elapsed = currentFrameTime - _lastFrameTime;
+
+            if (elapsed.TotalSeconds > 0)
+                _frameRate = 1.0 / elapsed.TotalSeconds;
+
+            _lastFrameTime = currentFrameTime;
+            _frameCount++;
+
+            await Task.Run(() =>
+            {
+                _quantumSystem.ApplySingleTimeEvolutionStep();
+                _currentTotalEnergy = _quantumSystem.CalculateTotalEnergy();
+                _currentProbabilityData = _quantumSystem.GetProbabilityData();
+            }, token);
+
+            await Update3DDisplay(_currentProbabilityData);
+            await InvokeAsync(StateHasChanged);
+
+            if (token.IsCancellationRequested)
+                break;
+
+            var difference = MaxFrameRateMillis - (int)elapsed.TotalMilliseconds;
+            if (difference > 0)
+                await Task.Delay(difference, token);
+        }
+
+        IsSimulationRunning = false;
+    }
+
+    public async Task Update3DDisplay(float[]? probabilityData)
+    {
+        probabilityData ??= _quantumSystem.GetProbabilityData();
+        await JSRuntime.InvokeVoidAsync("QuantumInterop.updateThreeJsScene", probabilityData);
+    }
+
+    private async Task RestartSimulation()
+    {
+        if (IsSimulationRunning)
+        {
+            _cancellationTokenSource.Cancel();
+            _cancellationTokenSource.Dispose();
+            _cancellationTokenSource = new CancellationTokenSource();
+        }
+
+        await ResetSimAndGraphics();
+        await StartSimulation(_cancellationTokenSource.Token);
+    }
+
+    private void TogglePause() => Paused = !Paused;
+
+    private void ToggleControlsVisibility() => _areControlsVisible = !_areControlsVisible;
+
+    private string GetControlPanelClass() => _areControlsVisible ? "expanded" : "collapsed";
+
+    private async Task UpdateProbabilitySphereScale(ChangeEventArgs e) => 
+        await JSRuntime.InvokeVoidAsync("QuantumInterop.updatePointSize", 
+            float.Parse(e.Value?.ToString() ?? "1"));
 
     private void OnTimeStepChanged(ChangeEventArgs e)
     {
@@ -103,118 +193,5 @@ public partial class Index
         _massSliderPosition = Convert.ToDouble(e.Value);
         _mass = Math.Pow(10, _massSliderPosition);
         _quantumSystem.SingleParticleMass = _mass;
-    }
-
-    private async Task RestartSimulation()
-    {
-        if (simulationToken != null)
-            simulationTokenSource?.Cancel();
-
-        simulationTokenSource = new CancellationTokenSource();
-        simulationToken = simulationTokenSource.Token;
-
-        SetupQuantumSystem();
-        await Update3DDisplay();
-        StateHasChanged();
-
-        await StartQuantumSimulationLoop(simulationToken.Value, Paused);
-    }
-
-    private void TogglePause() => Paused = !Paused;
-
-    private void SetupQuantumSystem()
-    {
-        _quantumSystem = new QuantumSystem(dimensions, _timeStep, _spaceStep, _boundaryType);
-
-        _quantumSystem.InitializeGaussianPacket(
-            _gaussianX0, _gaussianY0, _gaussianZ0, _gaussianSigma, _gaussianKx, _gaussianKy, _gaussianKz);
-
-        _originalTotalEnergy = _quantumSystem.CalculateTotalEnergy();
-        _currentTotalEnergy = _quantumSystem.CalculateTotalEnergy();
-    }
-
-    private async Task StartQuantumSimulationLoop(CancellationToken token, bool paused = true)
-    {
-        RunningSimulation = true;
-        Paused = paused;
-
-        DateTime lastFrameTime = DateTime.UtcNow;
-
-        while (RunningSimulation)
-        {
-            DateTime currentFrameTime = DateTime.UtcNow;
-            var elapsed = (currentFrameTime - lastFrameTime);
-
-            if (!Paused)
-            {
-                _frameRate = 1.0 / elapsed.TotalSeconds;
-                lastFrameTime = currentFrameTime;
-                _frameCount++;
-
-                _quantumSystem.ApplySingleTimeEvolutionStep();
-                _currentTotalEnergy = _quantumSystem.CalculateTotalEnergy();
-
-                await Update3DDisplay();
-
-                StateHasChanged();
-            }
-
-            var difference = MaxFrameRateMillis - elapsed.Milliseconds;
-            if (difference > 0)
-                await Task.Delay(difference, token);
-            else
-                await Task.Delay(MaxFrameRateMillis, token);
-        }
-    }
-
-    private void ToggleControlsVisibility()
-    {
-        _areControlsVisible = !_areControlsVisible;
-    }
-
-    private string GetControlPanelClass()
-    {
-        return _areControlsVisible ? "expanded" : "collapsed";
-    }
-
-    public float[] GetProbabilityData(QuantumSystem quantumSystem)
-    {
-        var probabilityDensity = quantumSystem.CalculateProbabilityDensity();
-        var flattenedData = new List<float>();
-
-        for (int x = 0; x < _quantumSystem.Dimensions.x; x++)
-        {
-            for (int y = 0; y < _quantumSystem.Dimensions.y; y++)
-            {
-                for (int z = 0; z < _quantumSystem.Dimensions.z; z++)
-                {
-                    float probability = (float)probabilityDensity[x, y, z];
-
-                    // Check for invalid numbers
-                    if (float.IsNaN(probability) || float.IsInfinity(probability))
-                    {
-                        Logger.LogWarning($"Invalid probability value detected at ({x}, {y}, {z}): {probability}");
-                        probability = 0;  // Or handle this case as appropriate
-                    }
-
-                    flattenedData.Add(probability);
-                }
-            }
-        }
-
-        // Optional: Normalize the data
-        float maxProbability = flattenedData.Any() ? flattenedData.Max() : 0.0f;
-        for (int i = 0; i < flattenedData.Count; i++)
-        {
-            flattenedData[i] /= maxProbability;
-        }
-
-        return flattenedData.ToArray();
-    }
-
-    public async Task Update3DDisplay()
-    {
-        var probabilityData = GetProbabilityData(_quantumSystem);
-        await JSRuntime.InvokeVoidAsync("QuantumInterop.updateThreeJsScene", probabilityData);
     }
 }
