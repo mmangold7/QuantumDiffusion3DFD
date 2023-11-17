@@ -52,10 +52,10 @@ public partial class Index
     {
         if (firstRender)
         {
-            await JSRuntime.InvokeVoidAsync("initializeThreeJs",
+            await JSRuntime.InvokeVoidAsync("QuantumInterop.initializeThreeJs",
                 new { x = dimensions.x, y = dimensions.y, z = dimensions.z }, _spaceStep);
 
-            await JSRuntime.InvokeVoidAsync("updatePointSize", _pointSize);
+            await JSRuntime.InvokeVoidAsync("QuantumInterop.updatePointSize", _pointSize);
         }
     }
 
@@ -76,7 +76,7 @@ public partial class Index
     private async Task UpdateProbabilitySphereScale(ChangeEventArgs e)
     {
         _pointSize = float.Parse(e.Value.ToString());
-        await JSRuntime.InvokeVoidAsync("updatePointSize", _pointSize);
+        await JSRuntime.InvokeVoidAsync("QuantumInterop.updatePointSize", _pointSize);
     }
 
     private void OnTimeStepChanged(ChangeEventArgs e)
@@ -215,6 +215,6 @@ public partial class Index
     public async Task Update3DDisplay()
     {
         var probabilityData = GetProbabilityData(_quantumSystem);
-        await JSRuntime.InvokeVoidAsync("updateThreeJsScene", probabilityData);
+        await JSRuntime.InvokeVoidAsync("QuantumInterop.updateThreeJsScene", probabilityData);
     }
 }

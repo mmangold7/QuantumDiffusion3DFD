@@ -53,7 +53,7 @@
             </div>
             <div class="slider">
                 <label for="pointSizeSlider">Point Size: <span class="value-display">@_pointSize.ToString("0.0")</span></label>
-                <input type="range" id="pointSizeSlider" min="1" max="26" step="0.01" value="@_pointSize" @oninput="UpdateProbabilitySphereScale" />
+                <input type="range" id="pointSizeSlider" min="1" max="100" step="0.01" value="@_pointSize" @oninput="UpdateProbabilitySphereScale" />
             </div>
             <div class="control-item">
                 <label for="boundaryType">Boundary Type:</label>
