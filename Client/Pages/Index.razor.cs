@@ -47,7 +47,7 @@ public partial class Index
 
     private double TimeStep => Math.Pow(10, _logTimeStepPosition);
     private double SpaceStep => Math.Pow(10, _logSpaceStepPosition);
-    public static int MaxFrameRateMillis { get; set; } = 33;
+    public static int MaxFrameRateMillis { get; set; } = 100;
     public bool Paused { get; set; } = true;
     public bool IsSimulationRunning { get; set; }
 
@@ -102,42 +102,42 @@ public partial class Index
     private async Task StartSimulation(CancellationToken token)
     {
         IsSimulationRunning = true;
+
         while (!token.IsCancellationRequested)
         {
-            if (Paused)
+            if (Paused) await Task.Delay(100, token); // Small delay to reduce CPU usage
+            else
             {
-                await Task.Delay(100, token); // Small delay to reduce CPU usage
-                continue;
+                await Task.Run(async () =>
+                {
+                    _quantumSystem.ApplySingleTimeEvolutionStep();
+                    _currentTotalEnergy = _quantumSystem.CalculateTotalEnergy();
+                    _currentProbabilityData = _quantumSystem.GetProbabilityData();
+                    await Update3DDisplay(_currentProbabilityData);
+                }, token);
+
+                if (token.IsCancellationRequested) break;
+                await DelayUntilNextFrame(token);
+                await InvokeAsync(StateHasChanged);
             }
-
-            var currentFrameTime = DateTime.UtcNow;
-            var elapsed = currentFrameTime - _lastFrameTime;
-
-            if (elapsed.TotalSeconds > 0)
-                _frameRate = 1.0 / elapsed.TotalSeconds;
-
-            _lastFrameTime = currentFrameTime;
-            _frameCount++;
-
-            await Task.Run(() =>
-            {
-                _quantumSystem.ApplySingleTimeEvolutionStep();
-                _currentTotalEnergy = _quantumSystem.CalculateTotalEnergy();
-                _currentProbabilityData = _quantumSystem.GetProbabilityData();
-            }, token);
-
-            await Update3DDisplay(_currentProbabilityData);
-            await InvokeAsync(StateHasChanged);
-
-            if (token.IsCancellationRequested)
-                break;
-
-            var difference = MaxFrameRateMillis - (int)elapsed.TotalMilliseconds;
-            if (difference > 0)
-                await Task.Delay(difference, token);
         }
 
         IsSimulationRunning = false;
+    }
+
+    private async Task DelayUntilNextFrame(CancellationToken token)
+    {
+        var currentFrameTime = DateTime.UtcNow;
+        var elapsed = currentFrameTime - _lastFrameTime;
+
+        if (elapsed.TotalSeconds > 0)
+            _frameRate = 1.0 / elapsed.TotalSeconds;
+        _lastFrameTime = currentFrameTime;
+        _frameCount++;
+
+        var difference = MaxFrameRateMillis - (int)elapsed.TotalMilliseconds;
+        if (difference > 0)
+            await Task.Delay(difference, token);
     }
 
     public async Task Update3DDisplay(float[]? probabilityData)
