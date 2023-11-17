@@ -1,48 +1,54 @@
+using System;
 using System.Numerics;
 
 namespace QuantumDiffusion3DFD.Shared;
 
 public class QuantumSystem
 {
+    private readonly (int x, int y, int z) _dimensions;
+    private readonly BoundaryType _boundaryType;
     private Complex[,,] _wavefunction;
     private readonly Complex[,,] _laplacianWavefunction;
     private readonly double[,,] _potential;
+    private readonly double _hbar = 1.0;
+    private readonly double _mass = 1.0;
     private readonly double _timeStep;
     private readonly double _deltaX;
-    private readonly BoundaryType _boundaryType;
-
-    public double Hbar { get; set; } = 1.0;
-    public double SingleParticleMass { get; set; } = 1.0;
-    public (int x, int y, int z) Dimensions { get; set; }
-
-    public QuantumSystem((int x, int y, int z) dimensions, double timeStep, double spaceStep, BoundaryType boundaryType)
+    
+    public QuantumSystem(
+        (int x, int y, int z) dimensions,
+        BoundaryType boundaryType,
+        double timeStep, 
+        double spaceStep, 
+        double mass,
+        double hbar)
     {
-        Dimensions = dimensions;
-
-        _timeStep = timeStep;
-        _deltaX = spaceStep;
+        _dimensions = dimensions;
         _boundaryType = boundaryType;
-
+        _deltaX = spaceStep;
+        _timeStep = timeStep;
         _wavefunction = new Complex[dimensions.x, dimensions.y, dimensions.z];
         _laplacianWavefunction = new Complex[dimensions.x, dimensions.y, dimensions.z];
         _potential = new double[dimensions.x, dimensions.y, dimensions.z];
+        _mass = mass;
+        _hbar = hbar;
     }
 
     public double CalculateTotalEnergy()
     {
         var totalEnergy = 0.0;
 
-        for (var x = 0; x < Dimensions.x; x++)
+        for (var x = 0; x < _dimensions.x; x++)
         {
-            for (var y = 0; y < Dimensions.y; y++)
+            for (var y = 0; y < _dimensions.y; y++)
             {
-                for (var z = 0; z < Dimensions.z; z++)
+                for (var z = 0; z < _dimensions.z; z++)
                 {
                     var psi = _wavefunction[x, y, z];
                     var probabilityDensity = psi.Magnitude * psi.Magnitude;
 
                     var laplacianPsi = _laplacianWavefunction[x, y, z]; // Use the stored Laplacian
-                    var kineticEnergy = -(Hbar * Hbar / (2 * SingleParticleMass)) * (laplacianPsi * Complex.Conjugate(psi)).Real;
+                    var kineticEnergy = -(_hbar * _hbar / (2 * _mass)) * (laplacianPsi * Complex.Conjugate(psi)).Real;
 
                     var potentialEnergy = _potential[x, y, z] * probabilityDensity;
                     totalEnergy += kineticEnergy + potentialEnergy;
@@ -55,18 +61,18 @@ public class QuantumSystem
 
     public void ApplySingleTimeEvolutionStep()
     {
-        var newWavefunction = new Complex[Dimensions.x, Dimensions.y, Dimensions.z];
+        var newWavefunction = new Complex[_dimensions.x, _dimensions.y, _dimensions.z];
 
-        for (var x = 0; x < Dimensions.x; x++)
+        for (var x = 0; x < _dimensions.x; x++)
         {
-            for (var y = 0; y < Dimensions.y; y++)
+            for (var y = 0; y < _dimensions.y; y++)
             {
-                for (var z = 0; z < Dimensions.z; z++)
+                for (var z = 0; z < _dimensions.z; z++)
                 {
                     _laplacianWavefunction[x, y, z] = CalculateLaplacian(_wavefunction, x, y, z, _boundaryType);
 
-                    var timeDerivative = (-Hbar * Hbar / (2 * SingleParticleMass)) * _laplacianWavefunction[x, y, z] + _potential[x, y, z] * _wavefunction[x, y, z];
-                    newWavefunction[x, y, z] = _wavefunction[x, y, z] - (Complex.ImaginaryOne / Hbar) * timeDerivative * _timeStep;
+                    var timeDerivative = (-_hbar * _hbar / (2 * _mass)) * _laplacianWavefunction[x, y, z] + _potential[x, y, z] * _wavefunction[x, y, z];
+                    newWavefunction[x, y, z] = _wavefunction[x, y, z] - (Complex.ImaginaryOne / _hbar) * timeDerivative * _timeStep;
                 }
             }
         }
@@ -93,20 +99,20 @@ public class QuantumSystem
         switch (dimension)
         {
             case 0: // x-dimension
-                plusIndex = Mod(x + 1, Dimensions.x, boundaryType);
-                minusIndex = Mod(x - 1, Dimensions.x, boundaryType);
+                plusIndex = Mod(x + 1, _dimensions.x, boundaryType);
+                minusIndex = Mod(x - 1, _dimensions.x, boundaryType);
                 valuePlus = plusIndex != -1 ? wavefunction[plusIndex, y, z] : 0;
                 valueMinus = minusIndex != -1 ? wavefunction[minusIndex, y, z] : 0;
                 break;
             case 1: // y-dimension
-                plusIndex = Mod(y + 1, Dimensions.y, boundaryType);
-                minusIndex = Mod(y - 1, Dimensions.y, boundaryType);
+                plusIndex = Mod(y + 1, _dimensions.y, boundaryType);
+                minusIndex = Mod(y - 1, _dimensions.y, boundaryType);
                 valuePlus = plusIndex != -1 ? wavefunction[x, plusIndex, z] : 0;
                 valueMinus = minusIndex != -1 ? wavefunction[x, minusIndex, z] : 0;
                 break;
             case 2: // z-dimension
-                plusIndex = Mod(z + 1, Dimensions.z, boundaryType);
-                minusIndex = Mod(z - 1, Dimensions.z, boundaryType);
+                plusIndex = Mod(z + 1, _dimensions.z, boundaryType);
+                minusIndex = Mod(z - 1, _dimensions.z, boundaryType);
                 valuePlus = plusIndex != -1 ? wavefunction[x, y, plusIndex] : 0;
                 valueMinus = minusIndex != -1 ? wavefunction[x, y, minusIndex] : 0;
                 break;
@@ -137,13 +143,13 @@ public class QuantumSystem
 
     public double[,,] CalculateProbabilityDensity()
     {
-        var probabilityDensity = new double[Dimensions.x, Dimensions.y, Dimensions.z];
+        var probabilityDensity = new double[_dimensions.x, _dimensions.y, _dimensions.z];
 
-        for (var x = 0; x < Dimensions.x; x++)
+        for (var x = 0; x < _dimensions.x; x++)
         {
-            for (var y = 0; y < Dimensions.y; y++)
+            for (var y = 0; y < _dimensions.y; y++)
             {
-                for (var z = 0; z < Dimensions.z; z++)
+                for (var z = 0; z < _dimensions.z; z++)
                 {
                     var psi = _wavefunction[x, y, z];
                     probabilityDensity[x, y, z] = psi.Magnitude * psi.Magnitude; // |psi|^2
@@ -158,11 +164,11 @@ public class QuantumSystem
     {
         var normalizedAmplitude = CalculateNormalizationConstant(sigma);
 
-        for (var x = 0; x < Dimensions.x; x++)
+        for (var x = 0; x < _dimensions.x; x++)
         {
-            for (var y = 0; y < Dimensions.y; y++)
+            for (var y = 0; y < _dimensions.y; y++)
             {
-                for (var z = 0; z < Dimensions.z; z++)
+                for (var z = 0; z < _dimensions.z; z++)
                 {
                     var exponent = -((x - x0) * (x - x0) + (y - y0) * (y - y0) + (z - z0) * (z - z0)) / (4 * sigma * sigma);
                     var phase = kx * x + ky * y + kz * z;
@@ -181,15 +187,15 @@ public class QuantumSystem
     {
         var sum = 0.0;
 
-        for (var x = 0; x < Dimensions.x; x++)
+        for (var x = 0; x < _dimensions.x; x++)
         {
-            for (var y = 0; y < Dimensions.y; y++)
+            for (var y = 0; y < _dimensions.y; y++)
             {
-                for (var z = 0; z < Dimensions.z; z++)
+                for (var z = 0; z < _dimensions.z; z++)
                 {
-                    var temp = Math.Exp(-((x - Dimensions.x / 2.0) * (x - Dimensions.x / 2.0) +
-                                          (y - Dimensions.y / 2.0) * (y - Dimensions.y / 2.0) +
-                                          (z - Dimensions.z / 2.0) * (z - Dimensions.z / 2.0)) / (4 * sigma * sigma));
+                    var temp = Math.Exp(-((x - _dimensions.x / 2.0) * (x - _dimensions.x / 2.0) +
+                                          (y - _dimensions.y / 2.0) * (y - _dimensions.y / 2.0) +
+                                          (z - _dimensions.z / 2.0) * (z - _dimensions.z / 2.0)) / (4 * sigma * sigma));
                     sum += temp * temp;
                 }
             }
@@ -203,11 +209,11 @@ public class QuantumSystem
         var probabilityDensity = CalculateProbabilityDensity();
         var flattenedData = new List<float>();
 
-        for (var x = 0; x < Dimensions.x; x++)
+        for (var x = 0; x < _dimensions.x; x++)
         {
-            for (var y = 0; y < Dimensions.y; y++)
+            for (var y = 0; y < _dimensions.y; y++)
             {
-                for (var z = 0; z < Dimensions.z; z++)
+                for (var z = 0; z < _dimensions.z; z++)
                 {
                     var probability = (float)probabilityDensity[x, y, z];
 

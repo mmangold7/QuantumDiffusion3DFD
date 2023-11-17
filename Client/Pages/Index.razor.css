@@ -1,6 +1,4 @@
-@import url('open-iconic/font/css/open-iconic-bootstrap.min.css');
-
-html, body {
+﻿html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     background-color: #1C1B22;
     height: 100%;
@@ -39,20 +37,20 @@ html, body {
         height: 70px;
     }
 
-    #toggleButton {
-        margin-top: 0px;
-    }
+#toggleButton {
+    margin-top: 0px;
+}
 
-    .control-panel button {
-        width: 100%;
-        background-color: black;
-        color: white;
-        border: 1px solid black;
-        border-radius: 4px;
-        padding: 10px;
-        /*margin-top: 10px;*/
-        cursor: pointer;
-    }
+.control-panel button {
+    width: 100%;
+    background-color: black;
+    color: white;
+    border: 1px solid black;
+    border-radius: 4px;
+    padding: 10px;
+    /*margin-top: 10px;*/
+    cursor: pointer;
+}
 
 .control-item, .slider {
     margin-top: 10px;

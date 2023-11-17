@@ -14,14 +14,16 @@ public partial class Index
     private double _gaussianKy;
     private double _gaussianKz;
 
-    private double _mass = 1.0;
-    private double _hbar = 1.0;
-
     private static readonly (int x, int y, int z) Dimensions = new(10, 10, 10);
+    private static double _mass = 1.0;
+    private static double _hbar = 1.0;
     private static float _timeStep = 0.0002f;
     private static double _spaceStep = 0.1;
     private static BoundaryType _boundaryType;
-    private QuantumSystem _quantumSystem = new(Dimensions, _timeStep, _spaceStep, _boundaryType);
+    private QuantumSystem _quantumSystem = BuildSystemWithUiParameters();
+
+    private static QuantumSystem BuildSystemWithUiParameters() =>
+        new(Dimensions, _boundaryType, _timeStep, _spaceStep, _mass, _hbar);
 
     private double _originalTotalEnergy;
     private double _currentTotalEnergy;
@@ -53,6 +55,8 @@ public partial class Index
 
     protected override async Task OnInitializedAsync()
     {
+        _hbar = 1;
+        _mass = 1;
         _gaussianX0 = Dimensions.x / 2.0;
         _gaussianY0 = Dimensions.y / 2.0;
         _gaussianZ0 = Dimensions.z / 2.0;
@@ -77,14 +81,8 @@ public partial class Index
 
     private QuantumSystem SetupQuantumSystem()
     {
-        _quantumSystem = new QuantumSystem(Dimensions, _timeStep, _spaceStep, _boundaryType);
-
-        _quantumSystem.InitializeGaussianPacket(
-            _gaussianX0, _gaussianY0, _gaussianZ0, _gaussianSigma, _gaussianKx, _gaussianKy, _gaussianKz);
-
-        _originalTotalEnergy = _quantumSystem.CalculateTotalEnergy();
-        _currentTotalEnergy = _quantumSystem.CalculateTotalEnergy();
-
+        _quantumSystem = BuildSystemWithUiParameters();
+        _quantumSystem.InitializeGaussianPacket(_gaussianX0, _gaussianY0, _gaussianZ0, _gaussianSigma, _gaussianKx, _gaussianKy, _gaussianKz);
         return _quantumSystem;
     }
 
@@ -94,6 +92,8 @@ public partial class Index
         _currentProbabilityData = newSystem.GetProbabilityData();
         _frameCount = 0;
         _frameRate = 0;
+        _originalTotalEnergy = 0;
+        _currentTotalEnergy = 0;
         await Update3DDisplay(_currentProbabilityData);
         StateHasChanged();
     }
@@ -111,6 +111,7 @@ public partial class Index
                 {
                     _quantumSystem.ApplySingleTimeEvolutionStep();
                     _currentTotalEnergy = _quantumSystem.CalculateTotalEnergy();
+                    if(_originalTotalEnergy == 0) _originalTotalEnergy = _currentTotalEnergy;
                     _currentProbabilityData = _quantumSystem.GetProbabilityData();
                     await Update3DDisplay(_currentProbabilityData);
                 }, token);
@@ -184,13 +185,11 @@ public partial class Index
     {
         _hbarSliderPosition = Convert.ToDouble(e.Value);
         _hbar = Math.Pow(10, _hbarSliderPosition);
-        _quantumSystem.Hbar = _hbar;
     }
 
     private void OnMassSliderChanged(ChangeEventArgs e)
     {
         _massSliderPosition = Convert.ToDouble(e.Value);
         _mass = Math.Pow(10, _massSliderPosition);
-        _quantumSystem.SingleParticleMass = _mass;
     }
 }
