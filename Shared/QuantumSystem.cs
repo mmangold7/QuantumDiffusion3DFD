@@ -30,21 +30,21 @@ public class QuantumSystem
 
     public double CalculateTotalEnergy()
     {
-        double totalEnergy = 0.0;
+        var totalEnergy = 0.0;
 
-        for (int x = 0; x < Dimensions.x; x++)
+        for (var x = 0; x < Dimensions.x; x++)
         {
-            for (int y = 0; y < Dimensions.y; y++)
+            for (var y = 0; y < Dimensions.y; y++)
             {
-                for (int z = 0; z < Dimensions.z; z++)
+                for (var z = 0; z < Dimensions.z; z++)
                 {
-                    Complex psi = _wavefunction[x, y, z];
-                    double probabilityDensity = psi.Magnitude * psi.Magnitude;
+                    var psi = _wavefunction[x, y, z];
+                    var probabilityDensity = psi.Magnitude * psi.Magnitude;
 
-                    Complex laplacianPsi = _laplacianWavefunction[x, y, z]; // Use the stored Laplacian
-                    double kineticEnergy = -(Hbar * Hbar / (2 * SingleParticleMass)) * (laplacianPsi * Complex.Conjugate(psi)).Real;
+                    var laplacianPsi = _laplacianWavefunction[x, y, z]; // Use the stored Laplacian
+                    var kineticEnergy = -(Hbar * Hbar / (2 * SingleParticleMass)) * (laplacianPsi * Complex.Conjugate(psi)).Real;
 
-                    double potentialEnergy = _potential[x, y, z] * probabilityDensity;
+                    var potentialEnergy = _potential[x, y, z] * probabilityDensity;
                     totalEnergy += kineticEnergy + potentialEnergy;
                 }
             }
@@ -55,17 +55,17 @@ public class QuantumSystem
 
     public void ApplySingleTimeEvolutionStep()
     {
-        Complex[,,] newWavefunction = new Complex[Dimensions.x, Dimensions.y, Dimensions.z];
+        var newWavefunction = new Complex[Dimensions.x, Dimensions.y, Dimensions.z];
 
-        for (int x = 0; x < Dimensions.x; x++)
+        for (var x = 0; x < Dimensions.x; x++)
         {
-            for (int y = 0; y < Dimensions.y; y++)
+            for (var y = 0; y < Dimensions.y; y++)
             {
-                for (int z = 0; z < Dimensions.z; z++)
+                for (var z = 0; z < Dimensions.z; z++)
                 {
                     _laplacianWavefunction[x, y, z] = CalculateLaplacian(_wavefunction, x, y, z, _boundaryType);
 
-                    Complex timeDerivative = (-Hbar * Hbar / (2 * SingleParticleMass)) * _laplacianWavefunction[x, y, z] + _potential[x, y, z] * _wavefunction[x, y, z];
+                    var timeDerivative = (-Hbar * Hbar / (2 * SingleParticleMass)) * _laplacianWavefunction[x, y, z] + _potential[x, y, z] * _wavefunction[x, y, z];
                     newWavefunction[x, y, z] = _wavefunction[x, y, z] - (Complex.ImaginaryOne / Hbar) * timeDerivative * _timeStep;
                 }
             }
@@ -162,15 +162,15 @@ public class QuantumSystem
         {
             for (var y = 0; y < Dimensions.y; y++)
             {
-                for (int z = 0; z < Dimensions.z; z++)
+                for (var z = 0; z < Dimensions.z; z++)
                 {
                     var exponent = -((x - x0) * (x - x0) + (y - y0) * (y - y0) + (z - z0) * (z - z0)) / (4 * sigma * sigma);
                     var phase = kx * x + ky * y + kz * z;
 
                     var realPart = Math.Exp(exponent) * Math.Cos(phase);
-                    var imagPart = Math.Exp(exponent) * Math.Sin(phase);
+                    var imaginaryPart = Math.Exp(exponent) * Math.Sin(phase);
 
-                    _wavefunction[x, y, z] = new Complex(realPart, imagPart) * normalizedAmplitude;
+                    _wavefunction[x, y, z] = new Complex(realPart, imaginaryPart) * normalizedAmplitude;
                     _laplacianWavefunction[x, y, z] = CalculateLaplacian(_wavefunction, x, y, z, _boundaryType);
                 }
             }
