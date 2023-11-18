@@ -27,23 +27,22 @@
         <a href="" class="reload">Reload</a>
         <a class="dismiss">🗙</a>
     </div>
-    <script src="js/index.bundle.js"></script>
-    <script src="_framework/blazor.webassembly.js"></script>
     <script>
+        let deferredInstallPrompt;
+
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
-            window.deferredPrompt = e;
+            deferredInstallPrompt = e;
         });
 
         window.showPWAInstallPrompt = async () => {
-            let deferredPrompt = window.deferredPrompt;
-            if (!deferredPrompt) {
+            if (!deferredInstallPrompt) {
                 console.log("No install prompt available");
                 return false;
             }
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            deferredPrompt = null;
+            deferredInstallPrompt.prompt();
+            const { outcome } = await deferredInstallPrompt.userChoice;
+            deferredInstallPrompt = null;
             return outcome === 'accepted';
         };
 
@@ -53,5 +52,7 @@
             });
         }
     </script>
+    <script src="js/index.bundle.js"></script>
+    <script src="_framework/blazor.webassembly.js"></script>
 </body>
 </html>

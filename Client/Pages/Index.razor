@@ -34,6 +34,10 @@
                 <button @onclick="RestartSimulation">Reset</button>
             </div>
             <div class="slider">
+                <label for="maxFramesPerSecondSlider">Max FPS: <span class="value-display">@_maxFramesPerSecond.ToString("0")</span></label>
+                <input type="range" id="maxFramesPerSecondSlider" min="1" max="120" step="1" @bind="_maxFramesPerSecond" />
+            </div>
+            <div class="slider">
                 <label for="hbarSlider">Quantum of Action (ℏ): <span class="value-display">@_hbar.ToString("0.0000")</span></label>
                 <input type="range" id="hbarSlider" min="@MinPointLogValue" max="@MaxPointLogValue" step="0.01" @bind="_hbarSliderPosition" @oninput="OnHbarSliderChanged" />
             </div>

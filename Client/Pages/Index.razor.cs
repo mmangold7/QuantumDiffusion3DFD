@@ -38,6 +38,7 @@ public partial class Index
     private int _frameCount;
     private double _frameRate;
     private DateTime _lastFrameTime = DateTime.UtcNow;
+    private static int _maxFramesPerSecond = 10;
 
     private bool _areControlsVisible = true;
     private double _logTimeStepPosition;
@@ -55,7 +56,7 @@ public partial class Index
 
     private double TimeStep => Math.Pow(10, _logTimeStepPosition);
     private double SpaceStep => Math.Pow(10, _logSpaceStepPosition);
-    public static int MaxFrameRateMillis { get; set; } = 100;
+    public static int MaxFrameRateMillis => 1000 / _maxFramesPerSecond;
     public bool Paused { get; set; } = true;
     public bool IsSimulationRunning { get; set; }
 
