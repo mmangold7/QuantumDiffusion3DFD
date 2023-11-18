@@ -1,6 +1,6 @@
 {
-    "short_name": "QD3DFD",
-    "name": "QuantumDiffusion3DFD",
+    "short_name": "QuantumBox",
+    "name": "Quantum Particle in a Box Simulator",
     "icons": [
       {
         "src": "icon-512.png",

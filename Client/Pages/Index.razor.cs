@@ -6,6 +6,8 @@ namespace QuantumDiffusion3DFD.Client.Pages;
 
 public partial class Index
 {
+    // shell command for exposing api to network: "npx iisexpress-proxy https://localhost:7223 to 3000"
+
     private double _gaussianX0;
     private double _gaussianY0;
     private double _gaussianZ0;
@@ -14,9 +16,13 @@ public partial class Index
     private double _gaussianKy;
     private double _gaussianKz;
 
-    private static readonly (int x, int y, int z) Dimensions = new(10, 10, 10);
+    private static int _boxX = 10;
+    private static int _boxY = 10;
+    private static int _boxZ = 10;
+
+    private static (int x, int y, int z) Dimensions => new(_boxX, _boxY, _boxZ);
     private static double _mass = 1.0;
-    private static double _hbar = 1.0;
+    private static double _hbar = 3.0;
     private static float _timeStep = 0.0002f;
     private static double _spaceStep = 0.1;
     private static BoundaryType _boundaryType;
@@ -40,10 +46,10 @@ public partial class Index
     private double _massSliderPosition; // logarithmic scale
     private const double MinPointLogValue = -4; // 1/10000
     private const double MaxPointLogValue = 4;  // Corresponds to 10000
-    private const double MinTimeLogValue = -5; // Corresponds to 10^-5 = 0.00001
-    private const double MaxTimeLogValue = -1; // Corresponds to 10^-1 = 0.1
-    private const double MinSpaceLogValue = -3; // Corresponds to 10^-3 = 0.001
-    private const double MaxSpaceLogValue = 1;  // Corresponds to 10^1 = 10
+    //private const double MinTimeLogValue = -5; // Corresponds to 10^-5 = 0.00001
+    //private const double MaxTimeLogValue = -1; // Corresponds to 10^-1 = 0.1
+    //private const double MinSpaceLogValue = -3; // Corresponds to 10^-3 = 0.001
+    //private const double MaxSpaceLogValue = 1;  // Corresponds to 10^1 = 10
 
     private CancellationTokenSource _cancellationTokenSource = new();
 
@@ -55,12 +61,12 @@ public partial class Index
 
     protected override async Task OnInitializedAsync()
     {
-        _hbar = 1;
-        _mass = 1;
+        _hbarSliderPosition = _hbar;
+        _massSliderPosition = _mass;
         _gaussianX0 = Dimensions.x / 2.0;
         _gaussianY0 = Dimensions.y / 2.0;
         _gaussianZ0 = Dimensions.z / 2.0;
-        _gaussianSigma = 1.0;
+        _gaussianSigma = .75;
         _gaussianKx = 10;
         _gaussianKy = 10;
         _gaussianKz = 10;
@@ -77,6 +83,12 @@ public partial class Index
 
             await RestartSimulation();
         }
+    }
+
+    private async Task InstallApp()
+    {
+        var success = await JSRuntime.InvokeAsync<bool>("showPWAInstallPrompt");
+        Console.WriteLine($"User {(success ? "accepted" : "dismissed")} the A2HS prompt");
     }
 
     private QuantumSystem SetupQuantumSystem()
@@ -111,7 +123,7 @@ public partial class Index
                 {
                     _quantumSystem.ApplySingleTimeEvolutionStep();
                     _currentTotalEnergy = _quantumSystem.CalculateTotalEnergy();
-                    if(_originalTotalEnergy == 0) _originalTotalEnergy = _currentTotalEnergy;
+                    if (_originalTotalEnergy == 0) _originalTotalEnergy = _currentTotalEnergy;
                     _currentProbabilityData = _quantumSystem.GetProbabilityData();
                     await Update3DDisplay(_currentProbabilityData);
                 }, token);
@@ -165,8 +177,8 @@ public partial class Index
 
     private string GetControlPanelClass() => _areControlsVisible ? "expanded" : "collapsed";
 
-    private async Task UpdateProbabilitySphereScale(ChangeEventArgs e) => 
-        await JSRuntime.InvokeVoidAsync("QuantumInterop.updatePointSize", 
+    private async Task UpdateProbabilitySphereScale(ChangeEventArgs e) =>
+        await JSRuntime.InvokeVoidAsync("QuantumInterop.updatePointSize",
             float.Parse(e.Value?.ToString() ?? "1"));
 
     private void OnTimeStepChanged(ChangeEventArgs e)

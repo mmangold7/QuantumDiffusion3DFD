@@ -3,7 +3,7 @@
 @inject IJSRuntime JSRuntime
 @inject ILogger<Index> Logger
 
-<PageTitle>Quantum De-coherence Simulation</PageTitle>
+<PageTitle>Quantum Box</PageTitle>
 
 <div class="simulation-container">
     <div class="canvas-container">
@@ -76,6 +76,21 @@
                     <option value="Absorbing">Absorbing</option>
                 </select>
             </div>
+            <div class="control-item">
+                <button @onclick="InstallApp">Install for offline use</button>
+            </div>
+            @*             <div class="control-item">
+            <label for="boxX">Box Height:</label>
+            <input type="number" step="1" id="boxX" @bind="_boxX" />
+            </div>
+            <div class="control-item">
+            <label for="boxY">Box Width:</label>
+            <input type="number" step="1" id="boxY" @bind="_boxY" />
+            </div>
+            <div class="control-item">
+            <label for="boxZ">Box Depth:</label>
+            <input type="number" step="1" id="boxZ" @bind="_boxZ" />
+            </div> *@
             @* <div class="slider">
             <label for="timeStepSlider">Time Step: <span class="value-display">@TimeStep.ToString("0.0000")</span></label>
             <input type="range" id="timeStepSlider" min="@MinTimeLogValue" max="@MaxTimeLogValue" step="0.01" @bind="_logTimeStepPosition" @oninput="OnTimeStepChanged" />

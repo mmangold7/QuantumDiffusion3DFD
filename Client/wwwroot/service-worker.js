@@ -3,14 +3,15 @@ const assetsToCache = [
     './',  // Alias for 'index.html'
     'css/bootstrap/bootstrap.min.css',
     'css/app.css',
-    'css/index.css',
     'favicon.png',
     'QuantumDiffusion3DFD.Client.styles.css',
     'manifest.json',
     'js/index.bundle.js',
     '_framework/blazor.webassembly.js',
-    '_framework/wasm/mono.js',
-    '_framework/wasm/dotnet.wasm',
+    '_framework/blazor.boot.json',
+    '_framework/dotnet.wasm',
+    '_framework/dotnet.7.0.11.sf8asx8yhf.js',
+    //'_framework/dotnet.js',
     // Include additional resources required by Blazor
     // and any other assets like images, fonts, etc.
 ];

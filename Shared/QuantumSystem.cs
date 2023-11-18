@@ -10,8 +10,8 @@ public class QuantumSystem
     private Complex[,,] _wavefunction;
     private readonly Complex[,,] _laplacianWavefunction;
     private readonly double[,,] _potential;
-    private readonly double _hbar = 1.0;
-    private readonly double _mass = 1.0;
+    private readonly double _hbar;
+    private readonly double _mass;
     private readonly double _timeStep;
     private readonly double _deltaX;
     

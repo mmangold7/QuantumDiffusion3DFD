@@ -22,7 +22,7 @@ function initializeThreeJs(dimensions, spacing) {
     const fov = 75;
     const aspect = canvas.clientWidth / canvas.clientHeight;
     const near = 0.1;
-    const far = 500;
+    const far = 1000;
     camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
     controls = new OrbitControls(camera, renderer.domElement);
     camera.position.x = position.x;
@@ -175,6 +175,34 @@ function updatePointSize(newPointSize) {
         particleSystem.material.needsUpdate = true;
     }
 }
+
+//// Function to append messages to the loading-progress-text div
+//function appendMessage(message) {
+//    var loadingProgressText = document.querySelector('.loading-progress-text');
+//    if (loadingProgressText) {
+//        loadingProgressText.innerHTML += '<br>' + message;
+//    }
+//}
+
+//// Catching console errors
+//console.error = (function (oldFunction) {
+//    return function (message) {
+//        oldFunction(message); // Call the original function
+//        appendMessage('Console Error: ' + message);
+//    };
+//})(console.error);
+
+//// Catching network errors
+//window.addEventListener('error', function (event) {
+//    if (event.target.tagName === 'SCRIPT' || event.target.tagName === 'LINK') {
+//        appendMessage('Network Error: Failed to load ' + event.target.src || event.target.href);
+//    }
+//}, true);
+
+//// Catching unhandled promise rejections (useful for async errors)
+//window.onunhandledrejection = function (event) {
+//    appendMessage('Promise Rejection: ' + event.reason);
+//};
 
 //hacky workaround until I figure out why webpack isn't putting these on the window like it's configured to
 window.QuantumInterop = {
