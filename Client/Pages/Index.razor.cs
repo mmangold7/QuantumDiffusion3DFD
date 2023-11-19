@@ -22,8 +22,8 @@ public partial class Index
 
     private static (int x, int y, int z) Dimensions => new(_boxX, _boxY, _boxZ);
     private static double _mass = 1.0;
-    private static double _hbar = 3.0;
-    private static float _timeStep = 0.0002f;
+    private static double _hbar = 2.0;
+    private static float _timeStep = 0.0001f;
     private static double _spaceStep = 0.1;
     private static BoundaryType _boundaryType;
     private QuantumSystem _quantumSystem = BuildSystemWithUiParameters();
@@ -38,7 +38,7 @@ public partial class Index
     private int _frameCount;
     private double _frameRate;
     private DateTime _lastFrameTime = DateTime.UtcNow;
-    private static int _maxFramesPerSecond = 10;
+    private static int _maxFramesPerSecond = 20;
 
     private bool _areControlsVisible = true;
     private double _logTimeStepPosition;

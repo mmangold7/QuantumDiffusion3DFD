@@ -82,32 +82,34 @@ function initializeThreeJs(dimensions, spacing) {
     animate();
 }
 
-function interpolateColor(value) {
-    // Function to return a color based on the value
-    // Modify this function to get the desired color mapping
-    const hue = (1 - value) * 240; // From blue (low) to red (high)
-    return `hsl(${hue}, 100%, 50%)`;
+function updateThreeJsScene(probabilityData) {
+    let maxProbability = Math.max(...probabilityData);
+    if (maxProbability === 0) maxProbability = 1; // Avoid division by zero
+
+    let cubeIndex = 0;
+
+    scene.traverse(function (object) {
+        if (object.isMesh) {
+            const probability = probabilityData[cubeIndex] / maxProbability;
+            const color = interpolateColor(probability);
+            const opacity = probabilityToOpacity(probability);
+
+            object.material.color.set(color);
+            object.material.opacity = opacity;
+            object.material.transparent = true;
+            object.material.blending = THREE.AdditiveBlending;
+            object.material.needsUpdate = true;
+
+            cubeIndex++;
+        }
+    });
 }
 
-function interpolateColorRainbow(value) {
-    const colorStops = [
-        new THREE.Color(1, 0, 0), // Red
-        new THREE.Color(1, 0.5, 0), // Orange
-        new THREE.Color(1, 1, 0), // Yellow
-        new THREE.Color(0, 1, 0), // Green
-        new THREE.Color(0, 0, 1), // Blue
-        new THREE.Color(0.29, 0, 0.51), // Indigo
-        new THREE.Color(0.56, 0, 1) // Violet
-    ];
-
-    let scaledValue = value * (colorStops.length - 1);
-    let index = Math.floor(scaledValue);
-    let frac = scaledValue - index;
-
-    let color1 = colorStops[index];
-    let color2 = colorStops[Math.min(index + 1, colorStops.length - 1)];
-
-    return color1.clone().lerp(color2, frac);
+function updatePointSize(newPointSize) {
+    if (particleSystem && particleSystem.material && particleSystem.material.uniforms.pointSize) {
+        particleSystem.material.uniforms.pointSize.value = newPointSize;
+        particleSystem.material.needsUpdate = true;
+    }
 }
 
 function animate() {
@@ -136,29 +138,6 @@ function resizeRendererToDisplaySize(renderer) {
     return needResize;
 }
 
-function updateThreeJsScene(probabilityData) {
-    let maxProbability = Math.max(...probabilityData);
-    if (maxProbability === 0) maxProbability = 1; // Avoid division by zero
-
-    let cubeIndex = 0;
-
-    scene.traverse(function (object) {
-        if (object.isMesh) {
-            const probability = probabilityData[cubeIndex] / maxProbability;
-            const color = interpolateColor(probability);
-            const opacity = probabilityToOpacity(probability);
-
-            object.material.color.set(color);
-            object.material.opacity = opacity;
-            object.material.transparent = true;
-            object.material.blending = THREE.AdditiveBlending;
-            object.material.needsUpdate = true;
-
-            cubeIndex++;
-        }
-    });
-}
-
 function probabilityToOpacity(probability) {
     // Adjust this function to fine-tune how opacity scales with probability
     //let opacity = probability; // Direct linear mapping
@@ -169,46 +148,32 @@ function probabilityToOpacity(probability) {
     return opacity;
 }
 
-function updatePointSize(newPointSize) {
-    if (particleSystem && particleSystem.material && particleSystem.material.uniforms.pointSize) {
-        particleSystem.material.uniforms.pointSize.value = newPointSize;
-        particleSystem.material.needsUpdate = true;
-    }
+function interpolateColor(value) {
+    // Function to return a color based on the value
+    // Modify this function to get the desired color mapping
+    const hue = (1 - value) * 240; // From blue (low) to red (high)
+    return `hsl(${hue}, 100%, 50%)`;
 }
 
-//// Function to append messages to the loading-progress-text div
-//function appendMessage(message) {
-//    var loadingProgressText = document.querySelector('.loading-progress-text');
-//    if (loadingProgressText) {
-//        loadingProgressText.innerHTML += '<br>' + message;
-//    }
-//}
+function interpolateColorRainbow(value) {
+    const colorStops = [
+        new THREE.Color(1, 0, 0), // Red
+        new THREE.Color(1, 0.5, 0), // Orange
+        new THREE.Color(1, 1, 0), // Yellow
+        new THREE.Color(0, 1, 0), // Green
+        new THREE.Color(0, 0, 1), // Blue
+        new THREE.Color(0.29, 0, 0.51), // Indigo
+        new THREE.Color(0.56, 0, 1) // Violet
+    ];
 
-//// Catching console errors
-//console.error = (function (oldFunction) {
-//    return function (message) {
-//        oldFunction(message); // Call the original function
-//        appendMessage('Console Error: ' + message);
-//    };
-//})(console.error);
+    let scaledValue = value * (colorStops.length - 1);
+    let index = Math.floor(scaledValue);
+    let frac = scaledValue - index;
 
-//// Catching network errors
-//window.addEventListener('error', function (event) {
-//    if (event.target.tagName === 'SCRIPT' || event.target.tagName === 'LINK') {
-//        appendMessage('Network Error: Failed to load ' + event.target.src || event.target.href);
-//    }
-//}, true);
+    let color1 = colorStops[index];
+    let color2 = colorStops[Math.min(index + 1, colorStops.length - 1)];
 
-//// Catching unhandled promise rejections (useful for async errors)
-//window.onunhandledrejection = function (event) {
-//    appendMessage('Promise Rejection: ' + event.reason);
-//};
-
-//hacky workaround until I figure out why webpack isn't putting these on the window like it's configured to
-window.QuantumInterop = {
-    initializeThreeJs,
-    updatePointSize,
-    updateThreeJsScene
-};
+    return color1.clone().lerp(color2, frac);
+}
 
 export { initializeThreeJs, updatePointSize, updateThreeJsScene };

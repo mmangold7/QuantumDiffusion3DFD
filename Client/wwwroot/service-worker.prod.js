@@ -1,19 +1,19 @@
-const cacheName = 'quantum-diffusion-cache-v1';
+const version = '1.0.2';
+const cacheBuster = '?v=' + version;
+
+const cacheName = 'quantum-box-cache-v' + version;
 const assetsToCache = [
-    './',  // Alias for 'index.html'
-    'css/bootstrap/bootstrap.min.css',
-    'css/app.css',
-    'favicon.png',
-    'QuantumDiffusion3DFD.Client.styles.css',
-    'manifest.json',
-    'js/index.bundle.js',
-    '_framework/blazor.webassembly.js',
-    '_framework/blazor.boot.json',
-    '_framework/dotnet.wasm',
-    '_framework/dotnet.7.0.11.sf8asx8yhf.js',
-    //'_framework/dotnet.js',
-    // Include additional resources required by Blazor
-    // and any other assets like images, fonts, etc.
+    './' + cacheBuster,  // Alias for 'index.html'
+    'css/bootstrap/bootstrap.min.css' + cacheBuster,
+    'css/app.css' + cacheBuster,
+    'favicon.png' + cacheBuster,
+    'QuantumDiffusion3DFD.Client.styles.css' + cacheBuster,
+    'manifest.json' + cacheBuster,
+    'js/bundle.js' + cacheBuster,
+    '_framework/blazor.webassembly.js' + cacheBuster,
+    '_framework/blazor.boot.json' + cacheBuster,
+    '_framework/dotnet.wasm' + cacheBuster,
+    '_framework/dotnet.7.0.11.sf8asx8yhf.js' + cacheBuster,
 ];
 
 self.addEventListener('install', (event) => {

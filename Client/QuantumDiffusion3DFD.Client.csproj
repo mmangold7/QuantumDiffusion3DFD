@@ -1,8 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
 
 	<Target Name="PreBuild" BeforeTargets="PreBuildEvent">
-		<Exec Command="npm install" WorkingDirectory="node" />
-		<Exec Command="npm run build" WorkingDirectory="node" />
+		<Exec Command="npm install" />
+		<Exec Command="npm run build:$(Configuration.ToLower())" />
 	</Target>
 
 	<PropertyGroup>
@@ -26,10 +26,6 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\Shared\QuantumDiffusion3DFD.Shared.csproj" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<Folder Include="node\" />
 	</ItemGroup>
 
 </Project>
