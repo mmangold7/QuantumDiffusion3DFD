@@ -30,9 +30,11 @@ public class QuantumSystem
         _boundaryType = boundaryType;
         _deltaX = spaceStep;
         _timeStep = timeStep;
+
         _wavefunction = new Complex[dimensions.x, dimensions.y, dimensions.z];
         _laplacianWavefunction = new Complex[dimensions.x, dimensions.y, dimensions.z];
         _potential = new double[dimensions.x, dimensions.y, dimensions.z];
+
         _mass = mass;
         _hbar = hbar;
 
@@ -41,9 +43,9 @@ public class QuantumSystem
         _sliceZ = new Complex[dimensions.z];
     }
 
-    public float CalculateTotalEnergy()
+    public void InitializeGaussianPacket(double x0, double y0, double z0, double sigma, double kx, double ky, double kz)
     {
-        var totalEnergy = 0.0;
+        var normalizedAmplitude = CalculateNormalizationConstant(sigma);
 
         for (var x = 0; x < _dimensions.x; x++)
         {
@@ -51,19 +53,17 @@ public class QuantumSystem
             {
                 for (var z = 0; z < _dimensions.z; z++)
                 {
-                    var psi = _wavefunction[x, y, z];
-                    var probabilityDensity = psi.Magnitude * psi.Magnitude;
+                    var exponent = -((x - x0) * (x - x0) + (y - y0) * (y - y0) + (z - z0) * (z - z0)) / (4 * sigma * sigma);
+                    var phase = kx * x + ky * y + kz * z;
 
-                    var laplacianPsi = _laplacianWavefunction[x, y, z]; // Use the stored Laplacian
-                    var kineticEnergy = -(_hbar * _hbar / (2 * _mass)) * (laplacianPsi * Complex.Conjugate(psi)).Real;
+                    var realPart = Math.Exp(exponent) * Math.Cos(phase);
+                    var imaginaryPart = Math.Exp(exponent) * Math.Sin(phase);
 
-                    var potentialEnergy = _potential[x, y, z] * probabilityDensity;
-                    totalEnergy += kineticEnergy + potentialEnergy;
+                    _wavefunction[x, y, z] = new Complex(realPart, imaginaryPart) * normalizedAmplitude;
+                    _laplacianWavefunction[x, y, z] = CalculateLaplacian(_wavefunction, x, y, z, _boundaryType);
                 }
             }
         }
-
-        return (float)totalEnergy;
     }
 
     public void ApplySingleTimeEvolutionStepEuler()
@@ -129,22 +129,59 @@ public class QuantumSystem
         return (valuePlus - 2 * wavefunction[x, y, z] + valueMinus) / dx2;
     }
 
-    private static int Mod(int a, int b, BoundaryType boundaryType)
+    private static int Mod(int index, int max, BoundaryType boundaryType)
     {
         switch (boundaryType)
         {
             case BoundaryType.Reflective:
-                if (a < 0 || a >= b)
-                    return Math.Abs(b - Math.Abs(a) % b) % b;
-                break;
-            case BoundaryType.Absorbing:
-                if (a < 0 || a >= b)
+                // For reflective boundaries, return -1 if the index is outside the range.
+                // This signals the calling function to treat these points as having a wavefunction value of zero.
+                if (index < 0 || index >= max)
                     return -1;
-                break;
+                return index;
+
+            case BoundaryType.Periodic:
+                // For periodic boundaries, wrap around the index.
+                if (index < 0)
+                    return max + index;
+                if (index >= max)
+                    return index % max;
+                return index;
+
+            case BoundaryType.Absorbing:
+                // For absorbing boundaries, similar to reflective but might have different handling.
+                if (index < 0 || index >= max)
+                    return -1;
+                return index;
+
             default:
-                throw new ArgumentOutOfRangeException(nameof(boundaryType), boundaryType, null);
+                throw new ArgumentOutOfRangeException(nameof(boundaryType), boundaryType, "Invalid boundary type.");
         }
-        return a;
+    }
+
+    public float CalculateTotalEnergy()
+    {
+        var totalEnergy = 0.0;
+
+        for (var x = 0; x < _dimensions.x; x++)
+        {
+            for (var y = 0; y < _dimensions.y; y++)
+            {
+                for (var z = 0; z < _dimensions.z; z++)
+                {
+                    var psi = _wavefunction[x, y, z];
+                    var probabilityDensity = psi.Magnitude * psi.Magnitude;
+
+                    var laplacianPsi = _laplacianWavefunction[x, y, z]; // Use the stored Laplacian
+                    var kineticEnergy = -(_hbar * _hbar / (2 * _mass)) * (laplacianPsi * Complex.Conjugate(psi)).Real;
+
+                    var potentialEnergy = _potential[x, y, z] * probabilityDensity;
+                    totalEnergy += kineticEnergy + potentialEnergy;
+                }
+            }
+        }
+
+        return (float)totalEnergy;
     }
 
     public double[,,] CalculateProbabilityDensity()
@@ -164,29 +201,6 @@ public class QuantumSystem
         }
 
         return probabilityDensity;
-    }
-
-    public void InitializeGaussianPacket(double x0, double y0, double z0, double sigma, double kx, double ky, double kz)
-    {
-        var normalizedAmplitude = CalculateNormalizationConstant(sigma);
-
-        for (var x = 0; x < _dimensions.x; x++)
-        {
-            for (var y = 0; y < _dimensions.y; y++)
-            {
-                for (var z = 0; z < _dimensions.z; z++)
-                {
-                    var exponent = -((x - x0) * (x - x0) + (y - y0) * (y - y0) + (z - z0) * (z - z0)) / (4 * sigma * sigma);
-                    var phase = kx * x + ky * y + kz * z;
-
-                    var realPart = Math.Exp(exponent) * Math.Cos(phase);
-                    var imaginaryPart = Math.Exp(exponent) * Math.Sin(phase);
-
-                    _wavefunction[x, y, z] = new Complex(realPart, imaginaryPart) * normalizedAmplitude;
-                    _laplacianWavefunction[x, y, z] = CalculateLaplacian(_wavefunction, x, y, z, _boundaryType);
-                }
-            }
-        }
     }
 
     private double CalculateNormalizationConstant(double sigma)
