@@ -13,7 +13,7 @@ public static class Extensions
     }
 
 #if DEBUG
-    public const bool IsDebug = true;
+    public const bool IsDebug = false;
 #else
     public const bool IsDebug = false;
 #endif

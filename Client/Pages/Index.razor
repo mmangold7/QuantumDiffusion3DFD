@@ -26,15 +26,13 @@
                 <span>☰</span>
             }
         </button>
+        <hr class="control-divider" />
         <div class="controls" style="@(_areControlsVisible ? "display: block;" : "display:none;")">
             <div class="control-item">
                 <button @onclick="TogglePause">@(Paused ? "Play" : "Pause")</button>
             </div>
-            <div class="control-item">
-                <button @onclick="RestartSimulation">Reset</button>
-            </div>
             <div class="slider">
-                <label for="maxFramesPerSecondSlider">Max FPS: <span>@MaxFramesPerSecond.ToString("0")</span></label>
+                <label for="maxFramesPerSecondSlider">Max FPS (Immediate): <span>@MaxFramesPerSecond.ToString("0")</span></label>
                 <input type="range" id="maxFramesPerSecondSlider" min="1" max="120" step="1" @bind="MaxFramesPerSecond" />
             </div>
             <div class="slider">
@@ -85,7 +83,11 @@
                 </select>
             </div>
             <div class="control-item">
-                <button @onclick="InstallApp">Install for offline use</button>
+                <button @onclick="RestartSimulation">Apply & Restart</button>
+            </div>
+            <hr class="control-divider" />
+            <div class="control-item">
+                <button @onclick="InstallApp">Install Offline</button>
             </div>
         </div>
     </div>

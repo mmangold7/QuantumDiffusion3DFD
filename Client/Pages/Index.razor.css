@@ -109,3 +109,10 @@
         height: 100%;
     }
 }
+
+.control-divider {
+    border: none;
+    height: 1px;
+    background-color: #ddd; /* Adjust color as needed */
+    margin: 10px 0;
+}

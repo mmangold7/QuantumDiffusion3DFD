@@ -86,119 +86,6 @@ public class QuantumSystem
         _wavefunction = newWavefunction;
     }
 
-    public void ApplySingleTimeEvolutionStepRK4()
-    {
-        var newWavefunction = new Complex[_dimensions.x, _dimensions.y, _dimensions.z];
-
-        for (var x = 0; x < _dimensions.x; x++)
-        {
-            for (var y = 0; y < _dimensions.y; y++)
-            {
-                for (var z = 0; z < _dimensions.z; z++)
-                {
-                    // Calculate k1
-                    var k1 = TimeDerivative(_wavefunction, x, y, z);
-
-                    // Create intermediate wavefunctions for k2, k3, k4 calculations
-                    var wavefunctionK2 = new Complex[_dimensions.x, _dimensions.y, _dimensions.z];
-                    var wavefunctionK3 = new Complex[_dimensions.x, _dimensions.y, _dimensions.z];
-                    var wavefunctionK4 = new Complex[_dimensions.x, _dimensions.y, _dimensions.z];
-
-                    // Copy current wavefunction and apply k1 for k2 calculation
-                    Array.Copy(_wavefunction, wavefunctionK2, _wavefunction.Length);
-                    wavefunctionK2[x, y, z] += 0.5 * _timeStep * k1;
-
-                    // Calculate k2
-                    var k2 = TimeDerivative(wavefunctionK2, x, y, z);
-
-                    // Copy current wavefunction and apply k2 for k3 calculation
-                    Array.Copy(_wavefunction, wavefunctionK3, _wavefunction.Length);
-                    wavefunctionK3[x, y, z] += 0.5 * _timeStep * k2;
-
-                    // Calculate k3
-                    var k3 = TimeDerivative(wavefunctionK3, x, y, z);
-
-                    // Copy current wavefunction and apply k3 for k4 calculation
-                    Array.Copy(_wavefunction, wavefunctionK4, _wavefunction.Length);
-                    wavefunctionK4[x, y, z] += _timeStep * k3;
-
-                    // Calculate k4
-                    var k4 = TimeDerivative(wavefunctionK4, x, y, z);
-
-                    // Combine k values to update the wavefunction
-                    newWavefunction[x, y, z] = _wavefunction[x, y, z] + (_timeStep / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4);
-                }
-            }
-        }
-
-        _wavefunction = newWavefunction;
-    }
-
-    public void ApplySingleTimeEvolutionStepSSFM()
-    {
-        //string dll1Path = Path.Combine(System.Environment.CurrentDirectory, "_framework", "libfftw3-3-x64.dll");
-        //string dll2Path = Path.Combine(System.Environment.CurrentDirectory, "_framework", "libfftw3-3-x86.dll");
-        //string dll3Path = Path.Combine(System.Environment.CurrentDirectory, "_framework", "libfftw3-3-32.dll");
-        //string dll4Path = Path.Combine(System.Environment.CurrentDirectory, "_framework", "libfftw3-3-64.dll");
-
-        //NativeLibrary.Load(dll1Path);
-        //NativeLibrary.Load(dll2Path);
-        //NativeLibrary.Load(dll3Path);
-        //NativeLibrary.Load(dll4Path);
-
-        //FftwInterop.fftw_init_threads();
-
-        var debugOutput = false;
-        if (debugOutput) stopwatch = Stopwatch.StartNew();
-
-        FourierTransform(ref _wavefunction);
-        if (debugOutput) Extensions.LogMethodTime(nameof(FourierTransform), stopwatch);
-
-        KineticEvolution(ref _wavefunction, _timeStep / 2);
-        if (debugOutput) Extensions.LogMethodTime(nameof(KineticEvolution), stopwatch);
-
-        InverseFourierTransform(ref _wavefunction);
-        if (debugOutput) Extensions.LogMethodTime(nameof(InverseFourierTransform), stopwatch);
-
-        PotentialEvolution(ref _wavefunction, _timeStep);
-        if (debugOutput) Extensions.LogMethodTime(nameof(PotentialEvolution), stopwatch);
-
-        FourierTransform(ref _wavefunction);
-        if (debugOutput) Extensions.LogMethodTime(nameof(FourierTransform), stopwatch);
-
-        KineticEvolution(ref _wavefunction, _timeStep / 2);
-        if (debugOutput) Extensions.LogMethodTime(nameof(KineticEvolution), stopwatch);
-
-        InverseFourierTransform(ref _wavefunction);
-        if (debugOutput) Extensions.LogMethodTime(nameof(InverseFourierTransform), stopwatch);
-    }
-
-    private Complex TimeDerivative(Complex[,,] wavefunction, int x, int y, int z)
-    {
-        var laplacian = CalculateLaplacian(wavefunction, x, y, z, _boundaryType);
-        return (-_hbar * _hbar / (2 * _mass)) * laplacian + _potential[x, y, z] * wavefunction[x, y, z];
-    }
-
-    //private void FourierTransform(ref Complex[,,] wavefunction)
-    //{
-    //    var output = new Complex[_dimensions.x, _dimensions.y, _dimensions.z];
-    //    using var pinIn = new PinnedArray<Complex>(wavefunction);
-    //    using var pinOut = new PinnedArray<Complex>(output);
-    //    using var fftPlan = FftwPlanC2C.Create(pinIn, pinOut, DftDirection.Forwards);
-    //    fftPlan.Execute();
-    //    Array.Copy(output, wavefunction, wavefunction.Length);
-    //}
-
-    //private void InverseFourierTransform(ref Complex[,,] wavefunction)
-    //{
-    //    var output = new Complex[_dimensions.x, _dimensions.y, _dimensions.z];
-    //    using var pinIn = new PinnedArray<Complex>(wavefunction);
-    //    using var pinOut = new PinnedArray<Complex>(output);
-    //    using var ifftPlan = FftwPlanC2C.Create(pinIn, pinOut, DftDirection.Backwards);
-    //    ifftPlan.Execute();
-    //    Array.Copy(output, wavefunction, wavefunction.Length);
-    //}
-
     private Complex CalculateLaplacian(Complex[,,] wavefunction, int x, int y, int z, BoundaryType boundaryType)
     {
         var dx2 = _deltaX * _deltaX; // Assuming deltaX is the grid spacing
@@ -354,6 +241,99 @@ public class QuantumSystem
         return flattenedData.ToArray();
     }
 
+    public void ApplySingleTimeEvolutionStepRK4()
+    {
+        var newWavefunction = new Complex[_dimensions.x, _dimensions.y, _dimensions.z];
+
+        for (var x = 0; x < _dimensions.x; x++)
+        {
+            for (var y = 0; y < _dimensions.y; y++)
+            {
+                for (var z = 0; z < _dimensions.z; z++)
+                {
+                    // Calculate k1
+                    var k1 = TimeDerivative(_wavefunction, x, y, z);
+
+                    // Create intermediate wavefunctions for k2, k3, k4 calculations
+                    var wavefunctionK2 = new Complex[_dimensions.x, _dimensions.y, _dimensions.z];
+                    var wavefunctionK3 = new Complex[_dimensions.x, _dimensions.y, _dimensions.z];
+                    var wavefunctionK4 = new Complex[_dimensions.x, _dimensions.y, _dimensions.z];
+
+                    // Copy current wavefunction and apply k1 for k2 calculation
+                    Array.Copy(_wavefunction, wavefunctionK2, _wavefunction.Length);
+                    wavefunctionK2[x, y, z] += 0.5 * _timeStep * k1;
+
+                    // Calculate k2
+                    var k2 = TimeDerivative(wavefunctionK2, x, y, z);
+
+                    // Copy current wavefunction and apply k2 for k3 calculation
+                    Array.Copy(_wavefunction, wavefunctionK3, _wavefunction.Length);
+                    wavefunctionK3[x, y, z] += 0.5 * _timeStep * k2;
+
+                    // Calculate k3
+                    var k3 = TimeDerivative(wavefunctionK3, x, y, z);
+
+                    // Copy current wavefunction and apply k3 for k4 calculation
+                    Array.Copy(_wavefunction, wavefunctionK4, _wavefunction.Length);
+                    wavefunctionK4[x, y, z] += _timeStep * k3;
+
+                    // Calculate k4
+                    var k4 = TimeDerivative(wavefunctionK4, x, y, z);
+
+                    // Combine k values to update the wavefunction
+                    newWavefunction[x, y, z] = _wavefunction[x, y, z] + (_timeStep / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4);
+                }
+            }
+        }
+
+        _wavefunction = newWavefunction;
+    }
+
+    public void ApplySingleTimeEvolutionStepSSFM()
+    {
+        //string dll1Path = Path.Combine(System.Environment.CurrentDirectory, "_framework", "libfftw3-3-x64.dll");
+        //string dll2Path = Path.Combine(System.Environment.CurrentDirectory, "_framework", "libfftw3-3-x86.dll");
+        //string dll3Path = Path.Combine(System.Environment.CurrentDirectory, "_framework", "libfftw3-3-32.dll");
+        //string dll4Path = Path.Combine(System.Environment.CurrentDirectory, "_framework", "libfftw3-3-64.dll");
+
+        //NativeLibrary.Load(dll1Path);
+        //NativeLibrary.Load(dll2Path);
+        //NativeLibrary.Load(dll3Path);
+        //NativeLibrary.Load(dll4Path);
+
+        //FftwInterop.fftw_init_threads();
+
+        var debugOutput = false;
+        if (debugOutput) stopwatch = Stopwatch.StartNew();
+
+        FourierTransform(ref _wavefunction);
+        if (debugOutput) Extensions.LogMethodTime(nameof(FourierTransform), stopwatch);
+
+        KineticEvolution(ref _wavefunction, _timeStep / 2);
+        if (debugOutput) Extensions.LogMethodTime(nameof(KineticEvolution), stopwatch);
+
+        InverseFourierTransform(ref _wavefunction);
+        if (debugOutput) Extensions.LogMethodTime(nameof(InverseFourierTransform), stopwatch);
+
+        PotentialEvolution(ref _wavefunction, _timeStep);
+        if (debugOutput) Extensions.LogMethodTime(nameof(PotentialEvolution), stopwatch);
+
+        FourierTransform(ref _wavefunction);
+        if (debugOutput) Extensions.LogMethodTime(nameof(FourierTransform), stopwatch);
+
+        KineticEvolution(ref _wavefunction, _timeStep / 2);
+        if (debugOutput) Extensions.LogMethodTime(nameof(KineticEvolution), stopwatch);
+
+        InverseFourierTransform(ref _wavefunction);
+        if (debugOutput) Extensions.LogMethodTime(nameof(InverseFourierTransform), stopwatch);
+    }
+
+    private Complex TimeDerivative(Complex[,,] wavefunction, int x, int y, int z)
+    {
+        var laplacian = CalculateLaplacian(wavefunction, x, y, z, _boundaryType);
+        return (-_hbar * _hbar / (2 * _mass)) * laplacian + _potential[x, y, z] * wavefunction[x, y, z];
+    }
+
     private void FourierTransform(ref Complex[,,] wavefunction) => Transform3D(wavefunction, Fourier.Forward);
 
     private void InverseFourierTransform(ref Complex[,,] wavefunction) => Transform3D(wavefunction, Fourier.Inverse);
@@ -479,72 +459,24 @@ public class QuantumSystem
         }
     }
 }
-//public Complex GetWavefunctionValue(int x, int y, int z)
-//    {
-//        if (x < 0 || x >= Dimensions.x || y < 0 || y >= Dimensions.y || z < 0 || z >= Dimensions.z)
-//        {
-//            throw new ArgumentException("Invalid coordinates.");
-//        }
-
-//        return wavefunction[x, y, z];
-//    }
-//public void InitializeWavefunction(Complex initialWavefunction)
+//private void FourierTransform(ref Complex[,,] wavefunction)
 //{
-//    for (int x = 0; x < dimensions.x; x++)
-//    {
-//        for (int y = 0; y < dimensions.y; y++)
-//        {
-//            for (int z = 0; z < dimensions.z; z++)
-//            {
-//                wavefunction[x, y, z] = initialWavefunction;
-//            }
-//        }
-//    }
+//    var output = new Complex[_dimensions.x, _dimensions.y, _dimensions.z];
+//    using var pinIn = new PinnedArray<Complex>(wavefunction);
+//    using var pinOut = new PinnedArray<Complex>(output);
+//    using var fftPlan = FftwPlanC2C.Create(pinIn, pinOut, DftDirection.Forwards);
+//    fftPlan.Execute();
+//    Array.Copy(output, wavefunction, wavefunction.Length);
 //}
 
-//public void InitializeParticleInBoxWavefunction(int n_x, int n_y, int n_z)
+//private void InverseFourierTransform(ref Complex[,,] wavefunction)
 //{
-//    wavefunction = GetParticleInABoxWavefunction(n_x, n_y, n_z);
-//}
-
-//private Complex[,,] GetParticleInABoxWavefunction(int nX, int nY, int nZ)
-//{
-//    if (dimensions.x <= 0 || dimensions.y <= 0 || dimensions.z <= 0)
-//    {
-//        throw new ArgumentException("Invalid box dimensions");
-//    }
-
-//    if (nX < 1 || nY < 1 || nZ < 1)
-//    {
-//        throw new ArgumentException("Invalid quantum numbers");
-//    }
-
-//    double Lx = dimensions.x * deltaX;
-//    double Ly = dimensions.y * deltaY;
-//    double Lz = dimensions.z * deltaZ;
-
-//    var boxWavefunction = new Complex[dimensions.x, dimensions.y, dimensions.z];
-
-//    for (int x = 0; x < dimensions.x; x++)
-//    {
-//        for (int y = 0; y < dimensions.y; y++)
-//        {
-//            for (int z = 0; z < dimensions.z; z++)
-//            {
-//                double psi_x = Math.Sqrt(2.0 / Lx) * Math.Sin((nX * Math.PI * (x * deltaX)) / Lx);
-//                double psi_y = Math.Sqrt(2.0 / Ly) * Math.Sin((nY * Math.PI * (y * deltaY)) / Ly);
-//                double psi_z = Math.Sqrt(2.0 / Lz) * Math.Sin((nZ * Math.PI * (z * deltaZ)) / Lz);
-
-//                boxWavefunction[x, y, z] = new Complex(psi_x * psi_y * psi_z, 0.0);
-//            }
-//        }
-//    }
-
-//    return boxWavefunction;
-//}
-//public Complex[,,] GetWavefunction()
-//{
-//    return wavefunction;
+//    var output = new Complex[_dimensions.x, _dimensions.y, _dimensions.z];
+//    using var pinIn = new PinnedArray<Complex>(wavefunction);
+//    using var pinOut = new PinnedArray<Complex>(output);
+//    using var ifftPlan = FftwPlanC2C.Create(pinIn, pinOut, DftDirection.Backwards);
+//    ifftPlan.Execute();
+//    Array.Copy(output, wavefunction, wavefunction.Length);
 //}
 
 //public double MeasureObservable(Complex[,,] observableOperator)
@@ -627,10 +559,4 @@ public class QuantumSystem
 //            }
 //        }
 //    }
-//}
-
-//private void InitializeSinusoidal(double[] parameters)
-//{
-//    // Extract parameters like _dimensions.x, _dimensions.y, _dimensions.z, etc.
-//    // Fill wavefunction array with sinusoidal wavefunction values
 //}
