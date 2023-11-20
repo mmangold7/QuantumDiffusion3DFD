@@ -1,4 +1,4 @@
-using System;
+using MathNet.Numerics.IntegralTransforms;
 using System.Numerics;
 
 namespace QuantumDiffusion3DFD.Shared;
@@ -32,6 +32,10 @@ public class QuantumSystem
         _potential = new double[dimensions.x, dimensions.y, dimensions.z];
         _mass = mass;
         _hbar = hbar;
+
+        _sliceX = new Complex[dimensions.x];
+        _sliceY = new Complex[dimensions.y];
+        _sliceZ = new Complex[dimensions.z];
     }
 
     public double CalculateTotalEnergy()
@@ -217,26 +221,167 @@ public class QuantumSystem
                 {
                     var probability = (float)probabilityDensity[x, y, z];
 
-                    // Check for invalid numbers
                     if (float.IsNaN(probability) || float.IsInfinity(probability))
-                    {
-                        //Logger.LogWarning($"Invalid probability value detected at ({x}, {y}, {z}): {probability}");
                         probability = 0;  // Or handle this case as appropriate
-                    }
 
                     flattenedData.Add(probability);
                 }
             }
         }
 
-        // Optional: Normalize the data
+        // Normalize the data
         var maxProbability = flattenedData.Any() ? flattenedData.Max() : 0.0f;
         for (var i = 0; i < flattenedData.Count; i++)
-        {
             flattenedData[i] /= maxProbability;
-        }
 
         return flattenedData.ToArray();
+    }
+
+    public void ApplySingleTimeEvolutionStepSSFM()
+    {
+        // Step 1: Fourier Transform
+        FourierTransform(ref _wavefunction);
+
+        // Step 2: Kinetic Evolution (half step)
+        KineticEvolution(ref _wavefunction, _timeStep / 2);
+
+        // Step 3: Inverse Fourier Transform
+        InverseFourierTransform(ref _wavefunction);
+
+        // Step 4: Potential Evolution (full step)
+        PotentialEvolution(ref _wavefunction, _timeStep);
+
+        // Steps 5, 6, 7: Repeat for the second half kinetic evolution
+        FourierTransform(ref _wavefunction);
+        KineticEvolution(ref _wavefunction, _timeStep / 2);
+        InverseFourierTransform(ref _wavefunction);
+    }
+
+    private void FourierTransform(ref Complex[,,] wavefunction) => Transform3D(wavefunction, Fourier.Forward);
+
+    private void InverseFourierTransform(ref Complex[,,] wavefunction) => Transform3D(wavefunction, Fourier.Inverse);
+
+    private Complex[]? _sliceX, _sliceY, _sliceZ; // Initialize these arrays once with appropriate sizes
+
+    private void Transform3D(Complex[,,] data, Action<Complex[]> transform)
+    {
+        // Transform along x
+        for (int y = 0; y < _dimensions.y; y++)
+        {
+            for (int z = 0; z < _dimensions.z; z++)
+            {
+                for (int x = 0; x < _dimensions.x; x++)
+                {
+                    _sliceX[x] = data[x, y, z];
+                }
+
+                transform(_sliceX);
+
+                for (int x = 0; x < _dimensions.x; x++)
+                {
+                    data[x, y, z] = _sliceX[x];
+                }
+            }
+        }
+
+        // Transform along y
+        for (int x = 0; x < _dimensions.x; x++)
+        {
+            for (int z = 0; z < _dimensions.z; z++)
+            {
+                for (int y = 0; y < _dimensions.y; y++)
+                {
+                    _sliceY[y] = data[x, y, z];
+                }
+
+                transform(_sliceY);
+
+                for (int y = 0; y < _dimensions.y; y++)
+                {
+                    data[x, y, z] = _sliceY[y];
+                }
+            }
+        }
+
+        // Transform along z
+        for (int x = 0; x < _dimensions.x; x++)
+        {
+            for (int y = 0; y < _dimensions.y; y++)
+            {
+                for (int z = 0; z < _dimensions.z; z++)
+                {
+                    _sliceZ[z] = data[x, y, z];
+                }
+
+                transform(_sliceZ);
+
+                for (int z = 0; z < _dimensions.z; z++)
+                {
+                    data[x, y, z] = _sliceZ[z];
+                }
+            }
+        }
+    }
+
+    private void KineticEvolution(ref Complex[,,] wavefunction, double timeStep)
+    {
+        double dx = _deltaX; // Space step
+        double dkx = 2 * Math.PI / (_dimensions.x * dx); // Momentum step in x
+        double dky = 2 * Math.PI / (_dimensions.y * dx); // Assuming same space step in y
+        double dkz = 2 * Math.PI / (_dimensions.z * dx); // Assuming same space step in z
+
+        // Precompute phase shifts if feasible
+        // For example, if you know the range of kineticEnergy values
+        Dictionary<double, (double cos, double sin)> precomputedValues = new Dictionary<double, (double cos, double sin)>();
+
+        for (int x = 0; x < _dimensions.x; x++)
+        {
+            for (int y = 0; y < _dimensions.y; y++)
+            {
+                for (int z = 0; z < _dimensions.z; z++)
+                {
+                    // Calculate the momentum for each dimension
+                    double kx = (x <= _dimensions.x / 2) ? x * dkx : (x - _dimensions.x) * dkx;
+                    double ky = (y <= _dimensions.y / 2) ? y * dky : (y - _dimensions.y) * dky;
+                    double kz = (z <= _dimensions.z / 2) ? z * dkz : (z - _dimensions.z) * dkz;
+
+                    // Calculate the kinetic energy term
+                    double kineticEnergy = (kx * kx + ky * ky + kz * kz) * (_hbar * _hbar) / (2 * _mass);
+
+                    // Update the wavefunction based on the kinetic energy
+                    double phaseShift = -kineticEnergy * timeStep / _hbar;
+
+                    if (!precomputedValues.TryGetValue(phaseShift, out var trigValues))
+                    {
+                        trigValues = (Math.Cos(phaseShift), Math.Sin(phaseShift));
+                        precomputedValues[phaseShift] = trigValues;
+                    }
+
+                    wavefunction[x, y, z] *= new Complex(trigValues.cos, trigValues.sin);
+                }
+            }
+        }
+    }
+
+    private void PotentialEvolution(ref Complex[,,] wavefunction, double timeStep)
+    {
+        for (int x = 0; x < _dimensions.x; x++)
+        {
+            for (int y = 0; y < _dimensions.y; y++)
+            {
+                for (int z = 0; z < _dimensions.z; z++)
+                {
+                    // Get the potential energy at this point
+                    double potentialEnergy = _potential[x, y, z];
+
+                    // Calculate the phase shift due to the potential energy
+                    double phaseShift = -potentialEnergy * timeStep / _hbar;
+
+                    // Update the wavefunction at this point
+                    wavefunction[x, y, z] *= new Complex(Math.Cos(phaseShift), Math.Sin(phaseShift));
+                }
+            }
+        }
     }
 }
 //public Complex GetWavefunctionValue(int x, int y, int z)
@@ -391,6 +536,6 @@ public class QuantumSystem
 
 //private void InitializeSinusoidal(double[] parameters)
 //{
-//    // Extract parameters like nx, ny, nz, etc.
+//    // Extract parameters like _dimensions.x, _dimensions.y, _dimensions.z, etc.
 //    // Fill wavefunction array with sinusoidal wavefunction values
 //}

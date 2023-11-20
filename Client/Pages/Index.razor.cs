@@ -122,7 +122,8 @@ public partial class Index
             {
                 await Task.Run(async () =>
                 {
-                    _quantumSystem.ApplySingleTimeEvolutionStep();
+                    _quantumSystem.ApplySingleTimeEvolutionStepSSFM();
+                    //_quantumSystem.ApplySingleTimeEvolutionStep();
                     _currentTotalEnergy = _quantumSystem.CalculateTotalEnergy();
                     if (_originalTotalEnergy == 0) _originalTotalEnergy = _currentTotalEnergy;
                     _currentProbabilityData = _quantumSystem.GetProbabilityData();
