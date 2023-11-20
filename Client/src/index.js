@@ -39,18 +39,17 @@ function initializeThreeJs(dimensions, spacing) {
 
     scene = new THREE.Scene();
 
+    let cubeIndex = 0;
+
     for (let x = 0; x < dimensions.x; x++) {
         for (let y = 0; y < dimensions.y; y++) {
             for (let z = 0; z < dimensions.z; z++) {
-                const probability = 0.5;
-
                 const cubeSize = 10;
                 const cubeGeometry = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
-                const color = interpolateColor(probability);
                 const cubeMaterial = new THREE.MeshBasicMaterial({
-                    color: color,
+                    color: "#000000",
                     transparent: true,
-                    opacity: probability // Opacity based on probability
+                    opacity: 0
                 });
 
                 const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
@@ -60,47 +59,34 @@ function initializeThreeJs(dimensions, spacing) {
                     z * spacing * spacingScaleFactor
                 );
 
+                cube.name = `cube-${cubeIndex}`; // Set a unique name for each cube
                 scene.add(cube);
+                cubeIndex++;
             }
         }
     }
 
-    const boxGeometry = new THREE.BoxGeometry(dimensions.x * singleDimensionScaleFactor, dimensions.y * singleDimensionScaleFactor, dimensions.z * singleDimensionScaleFactor);
-    const edgesGeometry = new THREE.EdgesGeometry(boxGeometry);
-    const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 });
-    const wireframe = new THREE.LineSegments(edgesGeometry, lineMaterial);
-    wireframe.position.set(position.x, position.y, position.z);
-    scene.add(wireframe);
-
-    //const arrowGeometry = new THREE.ConeGeometry(0.5, 1, 32); // Small cone to represent an arrow
-    //const arrowMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 }); // Green color
-    //const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
-    //arrow.rotation.x = Math.PI / 2; // Rotate to point upwards
-    //arrow.visible = false; // Initially hidden
-    //scene.add(arrow);
+    const wireFrameBox = new THREE.BoxGeometry(dimensions.x * singleDimensionScaleFactor, dimensions.y * singleDimensionScaleFactor, dimensions.z * singleDimensionScaleFactor);
+    const boxEdges = new THREE.EdgesGeometry(wireFrameBox);
+    const boxEdgeMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 });
+    const wireFrame = new THREE.LineSegments(boxEdges, boxEdgeMaterial);
+    wireFrame.position.set(position.x, position.y, position.z);
+    scene.add(wireFrame);
 
     animate();
 }
 
-function updateThreeJsScene(probabilityData) {
-    let maxProbability = Math.max(...probabilityData);
-    if (maxProbability === 0) maxProbability = 1; // Avoid division by zero
+function updateThreeJsScene(updatedData) {
+    updatedData.forEach(data => {
+        const { index, color, opacity } = data;
 
-    let cubeIndex = 0;
-
-    scene.traverse(function (object) {
-        if (object.isMesh) {
-            const probability = probabilityData[cubeIndex] / maxProbability;
-            const color = interpolateColor(probability);
-            const opacity = probabilityToOpacity(probability);
-
+        let object = scene.getObjectByName(`cube-${index}`);
+        if (object && object.isMesh) {
             object.material.color.set(color);
             object.material.opacity = opacity;
             object.material.transparent = true;
             object.material.blending = THREE.AdditiveBlending;
             object.material.needsUpdate = true;
-
-            cubeIndex++;
         }
     });
 }
@@ -138,42 +124,18 @@ function resizeRendererToDisplaySize(renderer) {
     return needResize;
 }
 
-function probabilityToOpacity(probability) {
-    // Adjust this function to fine-tune how opacity scales with probability
-    //let opacity = probability; // Direct linear mapping
-    //let opacity = Math.sqrt(probability); // Square root mapping
-    //let opacity = probability * probability; // Squaring the probability
-    //let opacity = Math.log(probability + 1) / Math.log(2); // Log base 2
-    let opacity = 1 / (1 + Math.exp(-10 * (probability - 0.5))); // Sigmoid function
-    return opacity;
+async function loadWasmModule() {
+    const wasmModule = await fetch('wasm/WASMkissFFT.wasm').then(response =>
+        response.arrayBuffer()
+    ).then(bytes =>
+        WebAssembly.instantiate(bytes, {})
+    );
+    return wasmModule.instance.exports;
 }
 
-function interpolateColor(value) {
-    // Function to return a color based on the value
-    // Modify this function to get the desired color mapping
-    const hue = (1 - value) * 240; // From blue (low) to red (high)
-    return `hsl(${hue}, 100%, 50%)`;
+async function performFFT(data) {
+    const wasmExports = await loadWasmModule();
+    return wasmExports.fft(data);
 }
 
-function interpolateColorRainbow(value) {
-    const colorStops = [
-        new THREE.Color(1, 0, 0), // Red
-        new THREE.Color(1, 0.5, 0), // Orange
-        new THREE.Color(1, 1, 0), // Yellow
-        new THREE.Color(0, 1, 0), // Green
-        new THREE.Color(0, 0, 1), // Blue
-        new THREE.Color(0.29, 0, 0.51), // Indigo
-        new THREE.Color(0.56, 0, 1) // Violet
-    ];
-
-    let scaledValue = value * (colorStops.length - 1);
-    let index = Math.floor(scaledValue);
-    let frac = scaledValue - index;
-
-    let color1 = colorStops[index];
-    let color2 = colorStops[Math.min(index + 1, colorStops.length - 1)];
-
-    return color1.clone().lerp(color2, frac);
-}
-
-export { initializeThreeJs, updatePointSize, updateThreeJsScene };
+export { initializeThreeJs, updatePointSize, updateThreeJsScene, performFFT };

@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using QuantumDiffusion3DFD.Shared;
+using SkiaSharp;
+using System.Diagnostics;
 
 namespace QuantumDiffusion3DFD.Client.Pages;
 
@@ -16,9 +18,11 @@ public partial class Index
     private double _gaussianKy;
     private double _gaussianKz;
 
-    private static int _boxX = 10;
-    private static int _boxY = 10;
-    private static int _boxZ = 10;
+    private const int cubeDimensionSize = 10;
+
+    private static int _boxX = cubeDimensionSize;
+    private static int _boxY = cubeDimensionSize;
+    private static int _boxZ = cubeDimensionSize;
 
     private static (int x, int y, int z) Dimensions => new(_boxX, _boxY, _boxZ);
     private static double _mass = 1.0;
@@ -33,6 +37,7 @@ public partial class Index
 
     private double _originalTotalEnergy;
     private double _currentTotalEnergy;
+    private float[]? previousProbabilityData;
     private float[]? _currentProbabilityData;
     private float _pointSize = 21.0f;
     private int _frameCount;
@@ -53,6 +58,7 @@ public partial class Index
     //private const double MaxSpaceLogValue = 1;  // Corresponds to 10^1 = 10
 
     private CancellationTokenSource _cancellationTokenSource = new();
+    Stopwatch? stopwatch;
 
     private double TimeStep => Math.Pow(10, _logTimeStepPosition);
     private double SpaceStep => Math.Pow(10, _logSpaceStepPosition);
@@ -102,7 +108,7 @@ public partial class Index
     private async Task ResetSimAndGraphics()
     {
         var newSystem = SetupQuantumSystem();
-        _currentProbabilityData = newSystem.GetProbabilityData();
+        _currentProbabilityData = newSystem.GetNormalizedProbabilityData();
         _frameCount = 0;
         _frameRate = 0;
         _originalTotalEnergy = 0;
@@ -115,6 +121,9 @@ public partial class Index
     {
         IsSimulationRunning = true;
 
+        var debugOutput = false;
+        if (debugOutput) stopwatch = Stopwatch.StartNew();
+
         while (!token.IsCancellationRequested)
         {
             if (Paused) await Task.Delay(100, token); // Small delay to reduce CPU usage
@@ -122,17 +131,27 @@ public partial class Index
             {
                 await Task.Run(async () =>
                 {
-                    _quantumSystem.ApplySingleTimeEvolutionStepSSFM();
-                    //_quantumSystem.ApplySingleTimeEvolutionStep();
+                    _quantumSystem.ApplySingleTimeEvolutionStepEuler();
+                    if (debugOutput) Extensions.LogMethodTime(nameof(_quantumSystem.ApplySingleTimeEvolutionStepEuler), stopwatch);
+                    
                     _currentTotalEnergy = _quantumSystem.CalculateTotalEnergy();
                     if (_originalTotalEnergy == 0) _originalTotalEnergy = _currentTotalEnergy;
-                    _currentProbabilityData = _quantumSystem.GetProbabilityData();
+                    if (debugOutput) Extensions.LogMethodTime(nameof(_quantumSystem.CalculateTotalEnergy), stopwatch);
+                    
+                    _currentProbabilityData = _quantumSystem.GetNormalizedProbabilityData();
+                    if (debugOutput) Extensions.LogMethodTime(nameof(_quantumSystem.GetNormalizedProbabilityData), stopwatch);
+                    
                     await Update3DDisplay(_currentProbabilityData);
+                    if (debugOutput) Extensions.LogMethodTime(nameof(Update3DDisplay), stopwatch);
                 }, token);
 
                 if (token.IsCancellationRequested) break;
+                
                 await DelayUntilNextFrame(token);
+                if (debugOutput) Extensions.LogMethodTime(nameof(DelayUntilNextFrame), stopwatch);
+                
                 await InvokeAsync(StateHasChanged);
+                if (debugOutput) Extensions.LogMethodTime(nameof(StateHasChanged), stopwatch);
             }
         }
 
@@ -154,11 +173,128 @@ public partial class Index
             await Task.Delay(difference, token);
     }
 
-    public async Task Update3DDisplay(float[]? probabilityData)
+    public async Task Update3DDisplay(float[] probabilityData)
     {
-        probabilityData ??= _quantumSystem.GetProbabilityData();
-        await JSRuntime.InvokeVoidAsync("QuantumInterop.updateThreeJsScene", probabilityData);
+        var updatedData = new List<object>();
+        float maxProbability = 1;
+        float updateThreshold = maxProbability * 0.1f;
+        float opacityScale = 0.75f;
+
+        for (int i = 0; i < probabilityData.Length; i++)
+        {
+            var newProbability = probabilityData[i];
+            if (previousProbabilityData == null || Math.Abs(newProbability - previousProbabilityData[i]) > updateThreshold)
+            {
+                var color = InterpolateColorGreenOrange(newProbability);
+                var opacity = SigmoidOpacity(newProbability * opacityScale);
+                updatedData.Add(new { index = i, color, opacity });
+                if (previousProbabilityData != null) previousProbabilityData[i] = newProbability;
+            }
+        }
+
+        if (updatedData.Count > 0)
+        {
+            await JSRuntime.InvokeVoidAsync("QuantumInterop.updateThreeJsScene", updatedData);
+        }
+        previousProbabilityData ??= probabilityData;
     }
+
+    private string InterpolateColorLightBlueSoftPink(float probability)
+    {
+        // Starting color: Light Blue (#5BCEFA)
+        var lowColor = (R: 91, G: 206, B: 250);
+        // Ending color: Soft Pink (#F5A9B8)
+        var highColor = (R: 245, G: 169, B: 184);
+
+        // Linear interpolation between the colors based on probability
+        byte r = (byte)(lowColor.R + (highColor.R - lowColor.R) * probability);
+        byte g = (byte)(lowColor.G + (highColor.G - lowColor.G) * probability);
+        byte b = (byte)(lowColor.B + (highColor.B - lowColor.B) * probability);
+
+        return $"#{r:X2}{g:X2}{b:X2}";
+    }
+
+    private string InterpolateColorGreenOrange(float probability)
+    {
+        // Define the endpoint colors: Green (low) and Orange (high)
+        var lowColor = (R: 0, G: 255, B: 0); // Green
+        var highColor = (R: 255, G: 165, B: 0); // Orange
+
+        // Linear interpolation between the colors based on probability
+        byte r = (byte)(lowColor.R + (highColor.R - lowColor.R) * probability);
+        byte g = (byte)(lowColor.G + (highColor.G - lowColor.G) * probability);
+        byte b = (byte)(lowColor.B + (highColor.B - lowColor.B) * probability);
+
+        return $"#{r:X2}{g:X2}{b:X2}";
+    }
+
+
+    private string InterpolateColorGrayscale(float probability)
+    {
+        var scaledProbability = (byte)(255 * probability);
+        return $"#{scaledProbability:X2}{scaledProbability:X2}{scaledProbability:X2}";
+    }
+
+    private string InterpolateHotCold(float probability)
+    {
+        // Endpoint colors
+        var coldColor = (R: 0, G: 0, B: 255); // Blue
+        var hotColor = (R: 255, G: 0, B: 0); // Red
+
+        // Interpolate
+        byte r = (byte)(coldColor.R + (hotColor.R - coldColor.R) * probability);
+        byte g = (byte)(coldColor.G + (hotColor.G - coldColor.G) * probability);
+        byte b = (byte)(coldColor.B + (hotColor.B - coldColor.B) * probability);
+
+        return $"#{r:X2}{g:X2}{b:X2}";
+    }
+
+    private string InterpolateColor(float value)
+    {
+        // Convert value to HSL color (hue from blue to red)
+        float hue = (1 - value) * 240;
+
+        // Using SkiaSharp to convert HSL to RGB
+        var skColor = SKColor.FromHsl(hue, 100, 50); // S and L values are percentages
+
+        // Format as hex string
+        return $"#{skColor.Red:X2}{skColor.Green:X2}{skColor.Blue:X2}";
+    }
+
+    private SKColor LerpColor(SKColor color1, SKColor color2, float fraction)
+    {
+        byte r = (byte)(color1.Red + fraction * (color2.Red - color1.Red));
+        byte g = (byte)(color1.Green + fraction * (color2.Green - color1.Green));
+        byte b = (byte)(color1.Blue + fraction * (color2.Blue - color1.Blue));
+
+        return new SKColor(r, g, b);
+    }
+
+    private string InterpolateColorRainbow(float probability)
+    {
+        var colorStops = new[]
+        {
+            SKColors.Red,
+            SKColors.Orange,
+            SKColors.Yellow,
+            SKColors.Green,
+            SKColors.Blue,
+            SKColors.Indigo,
+            SKColors.Violet
+        };
+
+        float scaledValue = probability * (colorStops.Length - 1);
+        int index = (int)Math.Floor(scaledValue);
+        float frac = scaledValue - index;
+
+        var color1 = colorStops[index];
+        var color2 = colorStops[Math.Min(index + 1, colorStops.Length - 1)];
+
+        var interpolatedColor = LerpColor(color1, color2, frac);
+        return $"#{interpolatedColor.Red:X2}{interpolatedColor.Green:X2}{interpolatedColor.Blue:X2}";
+    }
+
+    private float SigmoidOpacity(float probability) => (float)(1 / (1 + Math.Exp(-10 * (probability - 0.5))));
 
     private async Task RestartSimulation()
     {
