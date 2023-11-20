@@ -1,4 +1,4 @@
-﻿import { initializeThreeJs, updatePointSize, updateThreeJsScene, performFFT } from './index';
+﻿import { initializeThreeJs, updateThreeJsScene, performFFT } from './index';
 
 window.addEventListener('load', () => {
     if ('serviceWorker' in navigator) {
@@ -9,7 +9,6 @@ window.addEventListener('load', () => {
 
 window.QuantumInterop = {
     initializeThreeJs,
-    updatePointSize,
     updateThreeJsScene,
     performFFT
 };

@@ -8,86 +8,45 @@ namespace QuantumDiffusion3DFD.Client.Pages;
 
 public partial class Index
 {
-    // shell command for exposing api to network: "npx iisexpress-proxy https://localhost:7223 to 3000"
+    private const int CubeDimensionSize = 10;
+    private const int BoxX = CubeDimensionSize;
+    private const int BoxY = CubeDimensionSize;
+    private const int BoxZ = CubeDimensionSize;
+    private const float SpaceStep = 0.1f;
 
-    private double _gaussianX0;
-    private double _gaussianY0;
-    private double _gaussianZ0;
-    private double _gaussianSigma;
-    private double _gaussianKx;
-    private double _gaussianKy;
-    private double _gaussianKz;
-
-    private const int cubeDimensionSize = 10;
-
-    private static int _boxX = cubeDimensionSize;
-    private static int _boxY = cubeDimensionSize;
-    private static int _boxZ = cubeDimensionSize;
-
-    private static (int x, int y, int z) Dimensions => new(_boxX, _boxY, _boxZ);
-    private static double _mass = 1.0;
-    private static double _hbar = 2.0;
-    private static float _timeStep = 0.0001f;
-    private static double _spaceStep = 0.1;
-    private static BoundaryType _boundaryType;
-    private QuantumSystem _quantumSystem = BuildSystemWithUiParameters();
-
-    private static QuantumSystem BuildSystemWithUiParameters() =>
-        new(Dimensions, _boundaryType, _timeStep, _spaceStep, _mass, _hbar);
-
-    private double _originalTotalEnergy;
-    private double _currentTotalEnergy;
-    private float[]? previousProbabilityData;
-    private float[]? _currentProbabilityData;
-    private float _pointSize = 21.0f;
-    private int _frameCount;
-    private double _frameRate;
-    private DateTime _lastFrameTime = DateTime.UtcNow;
-    private static int _maxFramesPerSecond = 20;
-
+    private bool _isSimulationRunning;
     private bool _areControlsVisible = true;
-    private double _logTimeStepPosition;
-    private double _logSpaceStepPosition;
-    private double _hbarSliderPosition; // logarithmic scale
-    private double _massSliderPosition; // logarithmic scale
-    private const double MinPointLogValue = -4; // 1/10000
-    private const double MaxPointLogValue = 4;  // Corresponds to 10000
-    //private const double MinTimeLogValue = -5; // Corresponds to 10^-5 = 0.00001
-    //private const double MaxTimeLogValue = -1; // Corresponds to 10^-1 = 0.1
-    //private const double MinSpaceLogValue = -3; // Corresponds to 10^-3 = 0.001
-    //private const double MaxSpaceLogValue = 1;  // Corresponds to 10^1 = 10
-
+    private int _frameCount;
+    private float _frameRate;
+    private DateTime _lastFrameTime = DateTime.UtcNow;
+    private float[]? _previousProbabilityData;
+    private float[]? _currentProbabilityData;
+    private QuantumSystem? _quantumSystem;
     private CancellationTokenSource _cancellationTokenSource = new();
-    Stopwatch? stopwatch;
+    private Stopwatch? _stopwatch;
 
-    private double TimeStep => Math.Pow(10, _logTimeStepPosition);
-    private double SpaceStep => Math.Pow(10, _logSpaceStepPosition);
-    public static int MaxFrameRateMillis => 1000 / _maxFramesPerSecond;
-    public bool Paused { get; set; } = true;
-    public bool IsSimulationRunning { get; set; }
-
-    protected override async Task OnInitializedAsync()
-    {
-        _hbarSliderPosition = _hbar;
-        _massSliderPosition = _mass;
-        _gaussianX0 = Dimensions.x / 2.0;
-        _gaussianY0 = Dimensions.y / 2.0;
-        _gaussianZ0 = Dimensions.z / 2.0;
-        _gaussianSigma = .75;
-        _gaussianKx = 10;
-        _gaussianKy = 10;
-        _gaussianKz = 10;
-    }
+    private bool Paused { get; set; }
+    private int MaxFramesPerSecond { get; set; } = 30;
+    private float TimeStep { get; set; } = 0.0001f;
+    private float GaussianX0 { get; set; } = BoxX / 2.0f;
+    private float GaussianY0 { get; set; } = BoxY / 2.0f;
+    private float GaussianZ0 { get; set; } = BoxZ / 2.0f;
+    private float GaussianSigma { get; set; } = 1;
+    private float GaussianKx { get; set; } = 20;
+    private float GaussianKy { get; set; } = -50;
+    private float GaussianKz { get; set; } = 75;
+    private float Mass { get; set; } = 10;
+    private float Hbar { get; set; } = 10;
+    private BoundaryType BoundaryType { get; set; } = BoundaryType.Reflective;
+    private float OriginalTotalEnergy { get; set; }
+    private float CurrentTotalEnergy { get; set; }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            await JSRuntime.InvokeVoidAsync("QuantumInterop.initializeThreeJs",
-                new { Dimensions.x, Dimensions.y, Dimensions.z }, _spaceStep);
-
-            await JSRuntime.InvokeVoidAsync("QuantumInterop.updatePointSize", _pointSize);
-
+            await JSRuntime.InvokeVoidAsync("QuantumInterop.initializeThreeJs", 
+                new { x = BoxX, y = BoxY, z = BoxZ }, SpaceStep);
             await RestartSimulation();
         }
     }
@@ -98,31 +57,33 @@ public partial class Index
         Console.WriteLine($"User {(success ? "accepted" : "dismissed")} the A2HS prompt");
     }
 
-    private QuantumSystem SetupQuantumSystem()
-    {
-        _quantumSystem = BuildSystemWithUiParameters();
-        _quantumSystem.InitializeGaussianPacket(_gaussianX0, _gaussianY0, _gaussianZ0, _gaussianSigma, _gaussianKx, _gaussianKy, _gaussianKz);
-        return _quantumSystem;
-    }
+    private QuantumSystem FromUiValues() =>
+        new(new ValueTuple<int, int, int>(BoxX, BoxY, BoxZ), BoundaryType, TimeStep, SpaceStep, Mass, Hbar);
 
     private async Task ResetSimAndGraphics()
     {
-        var newSystem = SetupQuantumSystem();
-        _currentProbabilityData = newSystem.GetNormalizedProbabilityData();
         _frameCount = 0;
         _frameRate = 0;
-        _originalTotalEnergy = 0;
-        _currentTotalEnergy = 0;
+
+        OriginalTotalEnergy = 0;
+        CurrentTotalEnergy = 0;
+
+        _quantumSystem = FromUiValues();
+        _quantumSystem.InitializeGaussianPacket(GaussianX0, GaussianY0, GaussianZ0, GaussianSigma, GaussianKx, GaussianKy, GaussianKz);
+
+        _previousProbabilityData = null;
+        _currentProbabilityData = _quantumSystem.GetNormalizedProbabilityData();
+
         await Update3DDisplay(_currentProbabilityData);
+
         StateHasChanged();
     }
 
     private async Task StartSimulation(CancellationToken token)
     {
-        IsSimulationRunning = true;
+        _isSimulationRunning = true;
 
-        var debugOutput = false;
-        if (debugOutput) stopwatch = Stopwatch.StartNew();
+        if (Extensions.IsDebug) _stopwatch = Stopwatch.StartNew();
 
         while (!token.IsCancellationRequested)
         {
@@ -132,30 +93,30 @@ public partial class Index
                 await Task.Run(async () =>
                 {
                     _quantumSystem.ApplySingleTimeEvolutionStepEuler();
-                    if (debugOutput) Extensions.LogMethodTime(nameof(_quantumSystem.ApplySingleTimeEvolutionStepEuler), stopwatch);
+                    if (Extensions.IsDebug) Extensions.LogMethodTime(nameof(_quantumSystem.ApplySingleTimeEvolutionStepEuler), _stopwatch);
                     
-                    _currentTotalEnergy = _quantumSystem.CalculateTotalEnergy();
-                    if (_originalTotalEnergy == 0) _originalTotalEnergy = _currentTotalEnergy;
-                    if (debugOutput) Extensions.LogMethodTime(nameof(_quantumSystem.CalculateTotalEnergy), stopwatch);
+                    CurrentTotalEnergy = _quantumSystem.CalculateTotalEnergy();
+                    if (OriginalTotalEnergy == 0) OriginalTotalEnergy = CurrentTotalEnergy;
+                    //if (Extensions.IsDebug) Extensions.LogMethodTime(nameof(_quantumSystem.CalculateTotalEnergy), _stopwatch);
                     
                     _currentProbabilityData = _quantumSystem.GetNormalizedProbabilityData();
-                    if (debugOutput) Extensions.LogMethodTime(nameof(_quantumSystem.GetNormalizedProbabilityData), stopwatch);
+                    //if (Extensions.IsDebug) Extensions.LogMethodTime(nameof(_quantumSystem.GetNormalizedProbabilityData), _stopwatch);
                     
                     await Update3DDisplay(_currentProbabilityData);
-                    if (debugOutput) Extensions.LogMethodTime(nameof(Update3DDisplay), stopwatch);
+                    if (Extensions.IsDebug) Extensions.LogMethodTime(nameof(Update3DDisplay), _stopwatch);
                 }, token);
 
                 if (token.IsCancellationRequested) break;
                 
                 await DelayUntilNextFrame(token);
-                if (debugOutput) Extensions.LogMethodTime(nameof(DelayUntilNextFrame), stopwatch);
+                //if (Extensions.IsDebug) Extensions.LogMethodTime(nameof(DelayUntilNextFrame), _stopwatch);
                 
                 await InvokeAsync(StateHasChanged);
-                if (debugOutput) Extensions.LogMethodTime(nameof(StateHasChanged), stopwatch);
+                //if (Extensions.IsDebug) Extensions.LogMethodTime(nameof(StateHasChanged), _stopwatch);
             }
         }
 
-        IsSimulationRunning = false;
+        _isSimulationRunning = false;
     }
 
     private async Task DelayUntilNextFrame(CancellationToken token)
@@ -164,11 +125,11 @@ public partial class Index
         var elapsed = currentFrameTime - _lastFrameTime;
 
         if (elapsed.TotalSeconds > 0)
-            _frameRate = 1.0 / elapsed.TotalSeconds;
+            _frameRate = 1.0f / (float)elapsed.TotalSeconds;
         _lastFrameTime = currentFrameTime;
         _frameCount++;
 
-        var difference = MaxFrameRateMillis - (int)elapsed.TotalMilliseconds;
+        var difference = (1000 / MaxFramesPerSecond) - (int)elapsed.TotalMilliseconds;
         if (difference > 0)
             await Task.Delay(difference, token);
     }
@@ -183,12 +144,12 @@ public partial class Index
         for (int i = 0; i < probabilityData.Length; i++)
         {
             var newProbability = probabilityData[i];
-            if (previousProbabilityData == null || Math.Abs(newProbability - previousProbabilityData[i]) > updateThreshold)
+            if (_previousProbabilityData == null || Math.Abs(newProbability - _previousProbabilityData[i]) > updateThreshold)
             {
-                var color = InterpolateColorGreenOrange(newProbability);
+                var color = InterpolateColor(newProbability);
                 var opacity = SigmoidOpacity(newProbability * opacityScale);
                 updatedData.Add(new { index = i, color, opacity });
-                if (previousProbabilityData != null) previousProbabilityData[i] = newProbability;
+                if (_previousProbabilityData != null) _previousProbabilityData[i] = newProbability;
             }
         }
 
@@ -196,7 +157,7 @@ public partial class Index
         {
             await JSRuntime.InvokeVoidAsync("QuantumInterop.updateThreeJsScene", updatedData);
         }
-        previousProbabilityData ??= probabilityData;
+        _previousProbabilityData ??= probabilityData;
     }
 
     private string InterpolateColorLightBlueSoftPink(float probability)
@@ -298,7 +259,7 @@ public partial class Index
 
     private async Task RestartSimulation()
     {
-        if (IsSimulationRunning)
+        if (_isSimulationRunning)
         {
             _cancellationTokenSource.Cancel();
             _cancellationTokenSource.Dispose();
@@ -318,28 +279,4 @@ public partial class Index
     private async Task UpdateProbabilitySphereScale(ChangeEventArgs e) =>
         await JSRuntime.InvokeVoidAsync("QuantumInterop.updatePointSize",
             float.Parse(e.Value?.ToString() ?? "1"));
-
-    private void OnTimeStepChanged(ChangeEventArgs e)
-    {
-        _logTimeStepPosition = Convert.ToDouble(e.Value);
-        _timeStep = (float)TimeStep;
-    }
-
-    private void OnSpaceStepChanged(ChangeEventArgs e)
-    {
-        _logSpaceStepPosition = Convert.ToDouble(e.Value);
-        _spaceStep = (float)SpaceStep;
-    }
-
-    private void OnHbarSliderChanged(ChangeEventArgs e)
-    {
-        _hbarSliderPosition = Convert.ToDouble(e.Value);
-        _hbar = Math.Pow(10, _hbarSliderPosition);
-    }
-
-    private void OnMassSliderChanged(ChangeEventArgs e)
-    {
-        _massSliderPosition = Convert.ToDouble(e.Value);
-        _mass = Math.Pow(10, _massSliderPosition);
-    }
 }

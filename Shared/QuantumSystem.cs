@@ -41,7 +41,7 @@ public class QuantumSystem
         _sliceZ = new Complex[dimensions.z];
     }
 
-    public double CalculateTotalEnergy()
+    public float CalculateTotalEnergy()
     {
         var totalEnergy = 0.0;
 
@@ -63,7 +63,7 @@ public class QuantumSystem
             }
         }
 
-        return totalEnergy;
+        return (float)totalEnergy;
     }
 
     public void ApplySingleTimeEvolutionStepEuler()

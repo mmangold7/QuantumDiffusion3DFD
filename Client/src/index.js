@@ -91,13 +91,6 @@ function updateThreeJsScene(updatedData) {
     });
 }
 
-function updatePointSize(newPointSize) {
-    if (particleSystem && particleSystem.material && particleSystem.material.uniforms.pointSize) {
-        particleSystem.material.uniforms.pointSize.value = newPointSize;
-        particleSystem.material.needsUpdate = true;
-    }
-}
-
 function animate() {
     requestAnimationFrame(animate);
     controls.update();
@@ -138,4 +131,4 @@ async function performFFT(data) {
     return wasmExports.fft(data);
 }
 
-export { initializeThreeJs, updatePointSize, updateThreeJsScene, performFFT };
+export { initializeThreeJs, updateThreeJsScene, performFFT };
