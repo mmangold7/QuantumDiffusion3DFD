@@ -6,6 +6,9 @@ namespace QuantumDiffusion3DFD.Shared;
 
 public class QuantumSystem
 {
+    // todo
+    // 
+
     private Complex[]? _sliceX, _sliceY, _sliceZ; // Initialize these arrays once with appropriate sizes
     private readonly (int x, int y, int z) _dimensions;
     private readonly BoundaryType _boundaryType;
@@ -16,7 +19,6 @@ public class QuantumSystem
     private readonly double _mass;
     private readonly double _timeStep;
     private readonly double _deltaX;
-    Stopwatch? stopwatch;
 
     public QuantumSystem(
         (int x, int y, int z) dimensions,
@@ -305,41 +307,13 @@ public class QuantumSystem
 
     public void ApplySingleTimeEvolutionStepSSFM()
     {
-        //string dll1Path = Path.Combine(System.Environment.CurrentDirectory, "_framework", "libfftw3-3-x64.dll");
-        //string dll2Path = Path.Combine(System.Environment.CurrentDirectory, "_framework", "libfftw3-3-x86.dll");
-        //string dll3Path = Path.Combine(System.Environment.CurrentDirectory, "_framework", "libfftw3-3-32.dll");
-        //string dll4Path = Path.Combine(System.Environment.CurrentDirectory, "_framework", "libfftw3-3-64.dll");
-
-        //NativeLibrary.Load(dll1Path);
-        //NativeLibrary.Load(dll2Path);
-        //NativeLibrary.Load(dll3Path);
-        //NativeLibrary.Load(dll4Path);
-
-        //FftwInterop.fftw_init_threads();
-
-        var debugOutput = false;
-        if (debugOutput) stopwatch = Stopwatch.StartNew();
-
-        FourierTransform(ref _wavefunction);
-        if (debugOutput) Extensions.LogMethodTime(nameof(FourierTransform), stopwatch);
-
-        KineticEvolution(ref _wavefunction, _timeStep / 2);
-        if (debugOutput) Extensions.LogMethodTime(nameof(KineticEvolution), stopwatch);
-
-        InverseFourierTransform(ref _wavefunction);
-        if (debugOutput) Extensions.LogMethodTime(nameof(InverseFourierTransform), stopwatch);
-
-        PotentialEvolution(ref _wavefunction, _timeStep);
-        if (debugOutput) Extensions.LogMethodTime(nameof(PotentialEvolution), stopwatch);
-
-        FourierTransform(ref _wavefunction);
-        if (debugOutput) Extensions.LogMethodTime(nameof(FourierTransform), stopwatch);
-
-        KineticEvolution(ref _wavefunction, _timeStep / 2);
-        if (debugOutput) Extensions.LogMethodTime(nameof(KineticEvolution), stopwatch);
-
-        InverseFourierTransform(ref _wavefunction);
-        if (debugOutput) Extensions.LogMethodTime(nameof(InverseFourierTransform), stopwatch);
+        Profiling.RunWithClockingLog(() => FourierTransform(ref _wavefunction));
+        Profiling.RunWithClockingLog(() => KineticEvolution(ref _wavefunction, _timeStep / 2));
+        Profiling.RunWithClockingLog(() => InverseFourierTransform(ref _wavefunction));
+        Profiling.RunWithClockingLog(() => PotentialEvolution(ref _wavefunction, _timeStep));
+        Profiling.RunWithClockingLog(() => FourierTransform(ref _wavefunction));
+        Profiling.RunWithClockingLog(() => KineticEvolution(ref _wavefunction, _timeStep / 2));
+        Profiling.RunWithClockingLog(() => InverseFourierTransform(ref _wavefunction));
     }
 
     private Complex TimeDerivative(Complex[,,] wavefunction, int x, int y, int z)
@@ -473,6 +447,17 @@ public class QuantumSystem
         }
     }
 }
+
+//string dll1Path = Path.Combine(System.Environment.CurrentDirectory, "_framework", "libfftw3-3-x64.dll");
+//string dll2Path = Path.Combine(System.Environment.CurrentDirectory, "_framework", "libfftw3-3-x86.dll");
+//string dll3Path = Path.Combine(System.Environment.CurrentDirectory, "_framework", "libfftw3-3-32.dll");
+//string dll4Path = Path.Combine(System.Environment.CurrentDirectory, "_framework", "libfftw3-3-64.dll");
+//NativeLibrary.Load(dll1Path);
+//NativeLibrary.Load(dll2Path);
+//NativeLibrary.Load(dll3Path);
+//NativeLibrary.Load(dll4Path);
+//FftwInterop.fftw_init_threads();
+
 //private void FourierTransform(ref Complex[,,] wavefunction)
 //{
 //    var output = new Complex[_dimensions.x, _dimensions.y, _dimensions.z];

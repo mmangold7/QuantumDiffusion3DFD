@@ -2,7 +2,6 @@
 using Microsoft.JSInterop;
 using QuantumDiffusion3DFD.Shared;
 using SkiaSharp;
-using System.Diagnostics;
 
 namespace QuantumDiffusion3DFD.Client.Pages;
 
@@ -24,7 +23,6 @@ public partial class Index
     private float[]? _currentProbabilityData;
     private QuantumSystem? _quantumSystem;
     private CancellationTokenSource _cancellationTokenSource = new();
-    private Stopwatch? _stopwatch;
 
     private bool Paused { get; set; }
     private int MaxFramesPerSecond { get; set; } = 30;
@@ -84,8 +82,6 @@ public partial class Index
     {
         _isSimulationRunning = true;
 
-        if (Extensions.IsDebug) _stopwatch = Stopwatch.StartNew();
-
         while (!token.IsCancellationRequested)
         {
             if (Paused) await Task.Delay(100, token); // Small delay to reduce CPU usage
@@ -93,31 +89,33 @@ public partial class Index
             {
                 await Task.Run(async () =>
                 {
-                    _quantumSystem.ApplySingleTimeEvolutionStepEuler();
-                    if (Extensions.IsDebug) Extensions.LogMethodTime(nameof(_quantumSystem.ApplySingleTimeEvolutionStepEuler), _stopwatch);
-                    
-                    CurrentTotalEnergy = _quantumSystem.CalculateTotalEnergy();
-                    if (OriginalTotalEnergy == 0) OriginalTotalEnergy = CurrentTotalEnergy;
-                    //if (Extensions.IsDebug) Extensions.LogMethodTime(nameof(_quantumSystem.CalculateTotalEnergy), _stopwatch);
-                    
-                    _currentProbabilityData = _quantumSystem.GetNormalizedProbabilityData();
-                    //if (Extensions.IsDebug) Extensions.LogMethodTime(nameof(_quantumSystem.GetNormalizedProbabilityData), _stopwatch);
-                    
-                    await Update3DDisplay(_currentProbabilityData);
-                    if (Extensions.IsDebug) Extensions.LogMethodTime(nameof(Update3DDisplay), _stopwatch);
+                    Profiling.RunWithClockingLog(StepSystemTimeOnce);
+                    Profiling.RunWithClockingLog(UpdateEnergy);
+                    await Profiling.RunWithClockingLogAsync(UpdateProbabilityData);
                 }, token);
 
                 if (token.IsCancellationRequested) break;
                 
-                await DelayUntilNextFrame(token);
-                //if (Extensions.IsDebug) Extensions.LogMethodTime(nameof(DelayUntilNextFrame), _stopwatch);
-                
-                await InvokeAsync(StateHasChanged);
-                //if (Extensions.IsDebug) Extensions.LogMethodTime(nameof(StateHasChanged), _stopwatch);
+                await Profiling.RunWithClockingLogAsync(() => DelayUntilNextFrame(token));
+                await Profiling.RunWithClockingLogAsync(() => InvokeAsync(StateHasChanged));
             }
         }
 
         _isSimulationRunning = false;
+    }
+
+    private void StepSystemTimeOnce() => _quantumSystem.ApplySingleTimeEvolutionStepEuler();
+
+    private async Task UpdateProbabilityData()
+    {
+        _currentProbabilityData = _quantumSystem.GetNormalizedProbabilityData();
+        await Update3DDisplay(_currentProbabilityData);
+    }
+
+    private void UpdateEnergy()
+    {
+        CurrentTotalEnergy = _quantumSystem.CalculateTotalEnergy();
+        if (OriginalTotalEnergy == 0) OriginalTotalEnergy = CurrentTotalEnergy;
     }
 
     private async Task DelayUntilNextFrame(CancellationToken token)
