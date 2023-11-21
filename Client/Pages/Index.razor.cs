@@ -1,7 +1,5 @@
-﻿using Microsoft.AspNetCore.Components;
-using Microsoft.JSInterop;
+﻿using Microsoft.JSInterop;
 using QuantumDiffusion3DFD.Shared;
-using SkiaSharp;
 
 namespace QuantumDiffusion3DFD.Client.Pages;
 
@@ -20,25 +18,23 @@ public partial class Index
     private float _frameRate;
     private DateTime _lastFrameTime = DateTime.UtcNow;
     private float[]? _previousProbabilityData;
-    private float[]? _currentProbabilityData;
-    private QuantumSystem? _quantumSystem;
     private CancellationTokenSource _cancellationTokenSource = new();
 
     private bool Paused { get; set; }
     private int MaxFramesPerSecond { get; set; } = 30;
     private float TimeStep { get; set; } = 0.01f;
-    private float GaussianX0 { get; set; } = BoxX / 2.0f;
-    private float GaussianY0 { get; set; } = BoxY / 2.0f;
-    private float GaussianZ0 { get; set; } = BoxZ / 2.0f;
-    private float GaussianSigma { get; set; } = 2;
-    private float GaussianKx { get; set; } = 1;
-    private float GaussianKy { get; set; } = 1;
-    private float GaussianKz { get; set; } = 1;
+    private float ParticleXPosition { get; set; } = BoxX / 2.0f;
+    private float ParticleYPosition { get; set; } = BoxY / 2.0f;
+    private float ParticleZPosition { get; set; } = BoxZ / 2.0f;
+    private float RadiusSigma { get; set; } = 2;
+    private float XMomentumWavenumber { get; set; } = 1;
+    private float YMomentumWavenumber { get; set; } = 1;
+    private float ZMomentumWavenumber { get; set; } = 1;
     private float Mass { get; set; } = 1000;
     private float Hbar { get; set; } = 10;
-    private BoundaryType BoundaryType { get; set; } = BoundaryType.Reflective;
     private float OriginalTotalEnergy { get; set; }
     private float CurrentTotalEnergy { get; set; }
+    private BoundaryType BoundaryType { get; set; } = BoundaryType.Reflective;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -53,32 +49,32 @@ public partial class Index
     private async Task InstallApp()
     {
         var success = await JSRuntime.InvokeAsync<bool>("showPWAInstallPrompt");
-        Console.WriteLine($"User {(success ? "accepted" : "dismissed")} the A2HS prompt");
+        Console.WriteLine(
+            $"Install prompt was {(success ? "" : "not")} accepted." +
+            $"{(success ? "" : " Event to trigger it might not have been caught.")}");
     }
 
-    private QuantumSystem FromUiValues() =>
-        new(new ValueTuple<int, int, int>(BoxX, BoxY, BoxZ), BoundaryType, TimeStep, SpaceStep, Mass, Hbar);
-
-    private async Task ResetSimAndGraphics()
+    private async Task<QuantumSystem> ResetSimAndGraphics()
     {
         _frameCount = 0;
         _frameRate = 0;
-
         OriginalTotalEnergy = 0;
         CurrentTotalEnergy = 0;
-
-        _quantumSystem = FromUiValues();
-        _quantumSystem.InitializeGaussianPacket(GaussianX0, GaussianY0, GaussianZ0, GaussianSigma, GaussianKx, GaussianKy, GaussianKz);
-
         _previousProbabilityData = null;
-        _currentProbabilityData = _quantumSystem.GetNormalizedProbabilityData();
 
-        await Update3DDisplay(_currentProbabilityData);
+        var newSystem = new QuantumSystem(
+            BoxX, BoxY, BoxZ, BoundaryType, TimeStep, SpaceStep, Mass, Hbar);
+        newSystem.InitializeGaussianPacket(
+            ParticleXPosition, ParticleYPosition, ParticleZPosition, 
+            RadiusSigma, 
+            XMomentumWavenumber, YMomentumWavenumber, ZMomentumWavenumber);
 
+        await UpdateProbabilityData(newSystem);
         StateHasChanged();
+        return newSystem;
     }
 
-    private async Task StartSimulation(CancellationToken token)
+    private async Task StartSimulation(QuantumSystem quantumSystem, CancellationToken token)
     {
         _isSimulationRunning = true;
 
@@ -89,32 +85,38 @@ public partial class Index
             {
                 await Task.Run(async () =>
                 {
-                    Profiling.RunWithClockingLog(StepSystemTimeOnce);
-                    Profiling.RunWithClockingLog(UpdateEnergy);
-                    await Profiling.RunWithClockingLogAsync(UpdateProbabilityData);
+                    Profiling.RunWithClockingLog(quantumSystem.ApplySingleTimeEvolutionStepEuler);
+
+                    Profiling.RunWithClockingLog(() => 
+                        UpdateEnergy(quantumSystem), "UpdateEnergy(quantumSystem)"); 
+
+                    await Profiling.RunWithClockingLogAsync(() => 
+                        UpdateProbabilityData(quantumSystem), "UpdateProbabilityData(quantumSystem)");
                 }, token);
 
                 if (token.IsCancellationRequested) break;
                 
-                await Profiling.RunWithClockingLogAsync(() => DelayUntilNextFrame(token));
-                await Profiling.RunWithClockingLogAsync(() => InvokeAsync(StateHasChanged));
+                await Profiling.RunWithClockingLogAsync(() => 
+                    DelayUntilNextFrame(token), "DelayUntilNextFrame(token)");
+
+                await Profiling.RunWithClockingLogAsync(() => 
+                    InvokeAsync(StateHasChanged), "InvokeAsync(StateHasChanged)");
             }
         }
 
         _isSimulationRunning = false;
     }
 
-    private void StepSystemTimeOnce() => _quantumSystem.ApplySingleTimeEvolutionStepEuler();
-
-    private async Task UpdateProbabilityData()
+    private async Task UpdateProbabilityData(QuantumSystem quantumSystem)
     {
-        _currentProbabilityData = _quantumSystem.GetNormalizedProbabilityData();
-        await Update3DDisplay(_currentProbabilityData);
+        var newProbabilityData = quantumSystem.GetNormalizedProbabilityData();
+        var filteredData = FilterSignificantUpdates(newProbabilityData);
+        await Update3DDisplay(filteredData);
     }
 
-    private void UpdateEnergy()
+    private void UpdateEnergy(QuantumSystem quantumSystem)
     {
-        CurrentTotalEnergy = _quantumSystem.CalculateTotalEnergy();
+        CurrentTotalEnergy = quantumSystem.CalculateTotalEnergy();
         if (OriginalTotalEnergy == 0) OriginalTotalEnergy = CurrentTotalEnergy;
     }
 
@@ -133,128 +135,37 @@ public partial class Index
             await Task.Delay(difference, token);
     }
 
-    public async Task Update3DDisplay(float[] probabilityData)
+    public async Task Update3DDisplay(List<object> probabilityData)
+    {
+        if (probabilityData.Count > 0)
+            await JSRuntime.InvokeVoidAsync("QuantumInterop.updateThreeJsScene", probabilityData);
+    }
+
+    // Prevents lag from "updating" all of the cubes in three.js that have barely changed in value
+    // Ideally threshold would be calculated based on whether update would be perceivable/detectable by user (because of significantly different opacity and/or color)
+    private List<object> FilterSignificantUpdates(float[] probabilityData)
     {
         var updatedData = new List<object>();
         float maxProbability = 1;
-        float updateThreshold = maxProbability * 0.1f;
-        float opacityScale = 0.75f;
+        var updateThreshold = maxProbability * 0.1f;
+        var opacityScale = 0.75f;
 
         for (int i = 0; i < probabilityData.Length; i++)
         {
             var newProbability = probabilityData[i];
-            if (_previousProbabilityData == null || Math.Abs(newProbability - _previousProbabilityData[i]) > updateThreshold)
+            if (_previousProbabilityData == null ||
+                Math.Abs(newProbability - _previousProbabilityData[i]) > updateThreshold)
             {
-                var color = InterpolateColor(newProbability);
-                var opacity = SigmoidOpacity(newProbability * opacityScale);
+                var color = GraphicsExtensions.InterpolateColor(newProbability);
+                var opacity = GraphicsExtensions.SigmoidOpacity(newProbability * opacityScale);
                 updatedData.Add(new { index = i, color, opacity });
                 if (_previousProbabilityData != null) _previousProbabilityData[i] = newProbability;
             }
         }
 
-        if (updatedData.Count > 0)
-        {
-            await JSRuntime.InvokeVoidAsync("QuantumInterop.updateThreeJsScene", updatedData);
-        }
         _previousProbabilityData ??= probabilityData;
+        return updatedData;
     }
-
-    private string InterpolateColorLightBlueSoftPink(float probability)
-    {
-        // Starting color: Light Blue (#5BCEFA)
-        var lowColor = (R: 91, G: 206, B: 250);
-        // Ending color: Soft Pink (#F5A9B8)
-        var highColor = (R: 245, G: 169, B: 184);
-
-        // Linear interpolation between the colors based on probability
-        byte r = (byte)(lowColor.R + (highColor.R - lowColor.R) * probability);
-        byte g = (byte)(lowColor.G + (highColor.G - lowColor.G) * probability);
-        byte b = (byte)(lowColor.B + (highColor.B - lowColor.B) * probability);
-
-        return $"#{r:X2}{g:X2}{b:X2}";
-    }
-
-    private string InterpolateColorGreenOrange(float probability)
-    {
-        // Define the endpoint colors: Green (low) and Orange (high)
-        var lowColor = (R: 0, G: 255, B: 0); // Green
-        var highColor = (R: 255, G: 165, B: 0); // Orange
-
-        // Linear interpolation between the colors based on probability
-        byte r = (byte)(lowColor.R + (highColor.R - lowColor.R) * probability);
-        byte g = (byte)(lowColor.G + (highColor.G - lowColor.G) * probability);
-        byte b = (byte)(lowColor.B + (highColor.B - lowColor.B) * probability);
-
-        return $"#{r:X2}{g:X2}{b:X2}";
-    }
-
-
-    private string InterpolateColorGrayscale(float probability)
-    {
-        var scaledProbability = (byte)(255 * probability);
-        return $"#{scaledProbability:X2}{scaledProbability:X2}{scaledProbability:X2}";
-    }
-
-    private string InterpolateHotCold(float probability)
-    {
-        // Endpoint colors
-        var coldColor = (R: 0, G: 0, B: 255); // Blue
-        var hotColor = (R: 255, G: 0, B: 0); // Red
-
-        // Interpolate
-        byte r = (byte)(coldColor.R + (hotColor.R - coldColor.R) * probability);
-        byte g = (byte)(coldColor.G + (hotColor.G - coldColor.G) * probability);
-        byte b = (byte)(coldColor.B + (hotColor.B - coldColor.B) * probability);
-
-        return $"#{r:X2}{g:X2}{b:X2}";
-    }
-
-    private string InterpolateColor(float value)
-    {
-        // Convert value to HSL color (hue from blue to red)
-        float hue = (1 - value) * 240;
-
-        // Using SkiaSharp to convert HSL to RGB
-        var skColor = SKColor.FromHsl(hue, 100, 50); // S and L values are percentages
-
-        // Format as hex string
-        return $"#{skColor.Red:X2}{skColor.Green:X2}{skColor.Blue:X2}";
-    }
-
-    private SKColor LerpColor(SKColor color1, SKColor color2, float fraction)
-    {
-        byte r = (byte)(color1.Red + fraction * (color2.Red - color1.Red));
-        byte g = (byte)(color1.Green + fraction * (color2.Green - color1.Green));
-        byte b = (byte)(color1.Blue + fraction * (color2.Blue - color1.Blue));
-
-        return new SKColor(r, g, b);
-    }
-
-    private string InterpolateColorRainbow(float probability)
-    {
-        var colorStops = new[]
-        {
-            SKColors.Red,
-            SKColors.Orange,
-            SKColors.Yellow,
-            SKColors.Green,
-            SKColors.Blue,
-            SKColors.Indigo,
-            SKColors.Violet
-        };
-
-        float scaledValue = probability * (colorStops.Length - 1);
-        int index = (int)Math.Floor(scaledValue);
-        float frac = scaledValue - index;
-
-        var color1 = colorStops[index];
-        var color2 = colorStops[Math.Min(index + 1, colorStops.Length - 1)];
-
-        var interpolatedColor = LerpColor(color1, color2, frac);
-        return $"#{interpolatedColor.Red:X2}{interpolatedColor.Green:X2}{interpolatedColor.Blue:X2}";
-    }
-
-    private float SigmoidOpacity(float probability) => (float)(1 / (1 + Math.Exp(-10 * (probability - 0.5))));
 
     private async Task RestartSimulation()
     {
@@ -265,19 +176,12 @@ public partial class Index
             _cancellationTokenSource = new CancellationTokenSource();
         }
 
-        await ResetSimAndGraphics();
-        await StartSimulation(_cancellationTokenSource.Token);
+        var newSystem = await ResetSimAndGraphics();
+        await StartSimulation(newSystem, _cancellationTokenSource.Token);
     }
 
     private void TogglePause() => Paused = !Paused;
-
     private void ToggleManualInputs() => _showManualInputs = !_showManualInputs;
-
     private void ToggleControlsVisibility() => _areControlsVisible = !_areControlsVisible;
-
     private string GetControlPanelClass() => _areControlsVisible ? "expanded" : "collapsed";
-
-    private async Task UpdateProbabilitySphereScale(ChangeEventArgs e) =>
-        await JSRuntime.InvokeVoidAsync("QuantumInterop.updatePointSize",
-            float.Parse(e.Value?.ToString() ?? "1"));
 }

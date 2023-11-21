@@ -6,7 +6,7 @@ public static class Profiling
 {
     // shell command for exposing api to network: "npx iisexpress-proxy https://localhost:7223 to 3000"
 
-    public const bool ShouldLogMethodProfiles = true;
+    public const bool ShouldLogMethodProfiles = false;
 
     public const string DebugEnvironmentName = "DEVELOPMENT";
     public const string ReleaseEnvironmentName = "PRODUCTION";
@@ -20,15 +20,30 @@ public static class Profiling
     public static bool IsDebug = EnvironmentName == DebugEnvironmentName;
     public static bool IsRelease = EnvironmentName == ReleaseEnvironmentName;
 
-    public static void RunWithClockingLog(this Action action)
+    public static void RunWithClockingLog(Action action, string logText = null)
     {
+        if (action == null) throw new ArgumentNullException(nameof(action));
+
         if (ShouldLogMethodProfiles && IsDebug)
         {
-            var methodName = GetCallingMethodName();
+            logText = string.IsNullOrEmpty(logText) ? GetMethodDescription(action) : logText;
+
             var stopwatch = Stopwatch.StartNew();
-            action();
-            stopwatch.Stop();
-            LogMethodTime(methodName, stopwatch.ElapsedMilliseconds);
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                // Log the exception if necessary
+                Console.WriteLine($"Exception in {logText}: {ex.Message}");
+                throw;
+            }
+            finally
+            {
+                stopwatch.Stop();
+                LogMethodTime(logText, stopwatch.ElapsedMilliseconds);
+            }
         }
         else
         {
@@ -36,15 +51,30 @@ public static class Profiling
         }
     }
 
-    public static async Task RunWithClockingLogAsync(this Func<Task> action)
+    public static async Task RunWithClockingLogAsync(Func<Task> action, string logText = null)
     {
+        if (action == null) throw new ArgumentNullException(nameof(action));
+
         if (ShouldLogMethodProfiles && IsDebug)
         {
-            var methodName = GetCallingMethodName();
+            logText = string.IsNullOrEmpty(logText) ? GetMethodDescription(action) : logText;
+
             var stopwatch = Stopwatch.StartNew();
-            await action();
-            stopwatch.Stop();
-            LogMethodTime(methodName, stopwatch.ElapsedMilliseconds);
+            try
+            {
+                await action();
+            }
+            catch (Exception ex)
+            {
+                // Log the exception if necessary
+                Console.WriteLine($"Exception in {logText}: {ex.Message}");
+                throw;
+            }
+            finally
+            {
+                stopwatch.Stop();
+                LogMethodTime(logText, stopwatch.ElapsedMilliseconds);
+            }
         }
         else
         {
@@ -52,13 +82,16 @@ public static class Profiling
         }
     }
 
-    private static string GetCallingMethodName()
+    private static string GetMethodDescription(Delegate action)
     {
-        var frame = new StackFrame(2);
-        var method = frame.GetMethod();
-        return method.Name;
+        var methodInfo = action.Method;
+        if (methodInfo.IsStatic || action.Target == null)
+            return methodInfo.Name;
+
+        var type = action.Target.GetType();
+        return $"{type.FullName}.{methodInfo.Name}";
     }
 
-    private static void LogMethodTime(string methodName, long elapsedMilliseconds) => 
+    private static void LogMethodTime(string methodName, long elapsedMilliseconds) =>
         Console.WriteLine($"{methodName} took: {elapsedMilliseconds} ms");
 }

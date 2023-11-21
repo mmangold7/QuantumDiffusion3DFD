@@ -9,8 +9,10 @@ public class QuantumSystem
     // todo
     // 
 
+    private readonly int _xDimension;
+    private readonly int _yDimension;
+    private readonly int _zDimension;
     private Complex[]? _sliceX, _sliceY, _sliceZ; // Initialize these arrays once with appropriate sizes
-    private readonly (int x, int y, int z) _dimensions;
     private readonly BoundaryType _boundaryType;
     private Complex[,,] _wavefunction;
     private readonly Complex[,,] _laplacianWavefunction;
@@ -21,39 +23,44 @@ public class QuantumSystem
     private readonly double _deltaX;
 
     public QuantumSystem(
-        (int x, int y, int z) dimensions,
+        int x,
+        int y,
+        int z,
         BoundaryType boundaryType,
         double timeStep, 
         double spaceStep, 
         double mass,
         double hbar)
     {
-        _dimensions = dimensions;
+        _xDimension = x;
+        _yDimension = y;
+        _zDimension = z;
+
         _boundaryType = boundaryType;
         _deltaX = spaceStep;
         _timeStep = timeStep;
 
-        _wavefunction = new Complex[dimensions.x, dimensions.y, dimensions.z];
-        _laplacianWavefunction = new Complex[dimensions.x, dimensions.y, dimensions.z];
-        _potential = new double[dimensions.x, dimensions.y, dimensions.z];
+        _wavefunction = new Complex[x, y, z];
+        _laplacianWavefunction = new Complex[x, y, z];
+        _potential = new double[x, y, z];
 
         _mass = mass;
         _hbar = hbar;
 
-        _sliceX = new Complex[dimensions.x];
-        _sliceY = new Complex[dimensions.y];
-        _sliceZ = new Complex[dimensions.z];
+        _sliceX = new Complex[x];
+        _sliceY = new Complex[y];
+        _sliceZ = new Complex[z];
     }
 
     public void InitializeGaussianPacket(double x0, double y0, double z0, double sigma, double kx, double ky, double kz)
     {
         var normalizedAmplitude = CalculateNormalizationConstant(sigma);
 
-        for (var x = 0; x < _dimensions.x; x++)
+        for (var x = 0; x < _xDimension; x++)
         {
-            for (var y = 0; y < _dimensions.y; y++)
+            for (var y = 0; y < _yDimension; y++)
             {
-                for (var z = 0; z < _dimensions.z; z++)
+                for (var z = 0; z < _zDimension; z++)
                 {
                     var exponent = -((x - x0) * (x - x0) + (y - y0) * (y - y0) + (z - z0) * (z - z0)) / (4 * sigma * sigma);
                     var phase = kx * x + ky * y + kz * z;
@@ -70,13 +77,13 @@ public class QuantumSystem
 
     public void ApplySingleTimeEvolutionStepEuler()
     {
-        var newWavefunction = new Complex[_dimensions.x, _dimensions.y, _dimensions.z];
+        var newWavefunction = new Complex[_xDimension, _yDimension, _zDimension];
 
-        for (var x = 0; x < _dimensions.x; x++)
+        for (var x = 0; x < _xDimension; x++)
         {
-            for (var y = 0; y < _dimensions.y; y++)
+            for (var y = 0; y < _yDimension; y++)
             {
-                for (var z = 0; z < _dimensions.z; z++)
+                for (var z = 0; z < _zDimension; z++)
                 {
                     _laplacianWavefunction[x, y, z] = CalculateLaplacian(_wavefunction, x, y, z, _boundaryType);
 
@@ -107,20 +114,20 @@ public class QuantumSystem
         switch (dimension)
         {
             case 0: // x-dimension
-                plusIndex = Mod(x + 1, _dimensions.x, boundaryType);
-                minusIndex = Mod(x - 1, _dimensions.x, boundaryType);
+                plusIndex = Mod(x + 1, _xDimension, boundaryType);
+                minusIndex = Mod(x - 1, _xDimension, boundaryType);
                 valuePlus = plusIndex != -1 ? wavefunction[plusIndex, y, z] : 0;
                 valueMinus = minusIndex != -1 ? wavefunction[minusIndex, y, z] : 0;
                 break;
             case 1: // y-dimension
-                plusIndex = Mod(y + 1, _dimensions.y, boundaryType);
-                minusIndex = Mod(y - 1, _dimensions.y, boundaryType);
+                plusIndex = Mod(y + 1, _yDimension, boundaryType);
+                minusIndex = Mod(y - 1, _yDimension, boundaryType);
                 valuePlus = plusIndex != -1 ? wavefunction[x, plusIndex, z] : 0;
                 valueMinus = minusIndex != -1 ? wavefunction[x, minusIndex, z] : 0;
                 break;
             case 2: // z-dimension
-                plusIndex = Mod(z + 1, _dimensions.z, boundaryType);
-                minusIndex = Mod(z - 1, _dimensions.z, boundaryType);
+                plusIndex = Mod(z + 1, _zDimension, boundaryType);
+                minusIndex = Mod(z - 1, _zDimension, boundaryType);
                 valuePlus = plusIndex != -1 ? wavefunction[x, y, plusIndex] : 0;
                 valueMinus = minusIndex != -1 ? wavefunction[x, y, minusIndex] : 0;
                 break;
@@ -165,11 +172,11 @@ public class QuantumSystem
     {
         var totalEnergy = 0.0;
 
-        for (var x = 0; x < _dimensions.x; x++)
+        for (var x = 0; x < _xDimension; x++)
         {
-            for (var y = 0; y < _dimensions.y; y++)
+            for (var y = 0; y < _yDimension; y++)
             {
-                for (var z = 0; z < _dimensions.z; z++)
+                for (var z = 0; z < _zDimension; z++)
                 {
                     var psi = _wavefunction[x, y, z];
                     var probabilityDensity = psi.Magnitude * psi.Magnitude;
@@ -188,13 +195,13 @@ public class QuantumSystem
 
     public double[,,] CalculateProbabilityDensity()
     {
-        var probabilityDensity = new double[_dimensions.x, _dimensions.y, _dimensions.z];
+        var probabilityDensity = new double[_xDimension, _yDimension, _zDimension];
 
-        for (var x = 0; x < _dimensions.x; x++)
+        for (var x = 0; x < _xDimension; x++)
         {
-            for (var y = 0; y < _dimensions.y; y++)
+            for (var y = 0; y < _yDimension; y++)
             {
-                for (var z = 0; z < _dimensions.z; z++)
+                for (var z = 0; z < _zDimension; z++)
                 {
                     var psi = _wavefunction[x, y, z];
                     probabilityDensity[x, y, z] = psi.Magnitude * psi.Magnitude; // |psi|^2
@@ -209,15 +216,15 @@ public class QuantumSystem
     {
         var sum = 0.0;
 
-        for (var x = 0; x < _dimensions.x; x++)
+        for (var x = 0; x < _xDimension; x++)
         {
-            for (var y = 0; y < _dimensions.y; y++)
+            for (var y = 0; y < _yDimension; y++)
             {
-                for (var z = 0; z < _dimensions.z; z++)
+                for (var z = 0; z < _zDimension; z++)
                 {
-                    var temp = Math.Exp(-((x - _dimensions.x / 2.0) * (x - _dimensions.x / 2.0) +
-                                          (y - _dimensions.y / 2.0) * (y - _dimensions.y / 2.0) +
-                                          (z - _dimensions.z / 2.0) * (z - _dimensions.z / 2.0)) / (4 * sigma * sigma));
+                    var temp = Math.Exp(-((x - _xDimension / 2.0) * (x - _xDimension / 2.0) +
+                                          (y - _yDimension / 2.0) * (y - _yDimension / 2.0) +
+                                          (z - _zDimension / 2.0) * (z - _zDimension / 2.0)) / (4 * sigma * sigma));
                     sum += temp * temp;
                 }
             }
@@ -231,11 +238,11 @@ public class QuantumSystem
         var probabilityDensity = CalculateProbabilityDensity();
         var flattenedData = new List<float>();
 
-        for (var x = 0; x < _dimensions.x; x++)
+        for (var x = 0; x < _xDimension; x++)
         {
-            for (var y = 0; y < _dimensions.y; y++)
+            for (var y = 0; y < _yDimension; y++)
             {
-                for (var z = 0; z < _dimensions.z; z++)
+                for (var z = 0; z < _zDimension; z++)
                 {
                     var probability = (float)probabilityDensity[x, y, z];
 
@@ -259,21 +266,21 @@ public class QuantumSystem
 
     public void ApplySingleTimeEvolutionStepRK4()
     {
-        var newWavefunction = new Complex[_dimensions.x, _dimensions.y, _dimensions.z];
+        var newWavefunction = new Complex[_xDimension, _yDimension, _zDimension];
 
-        for (var x = 0; x < _dimensions.x; x++)
+        for (var x = 0; x < _xDimension; x++)
         {
-            for (var y = 0; y < _dimensions.y; y++)
+            for (var y = 0; y < _yDimension; y++)
             {
-                for (var z = 0; z < _dimensions.z; z++)
+                for (var z = 0; z < _zDimension; z++)
                 {
                     // Calculate k1
                     var k1 = TimeDerivative(_wavefunction, x, y, z);
 
                     // Create intermediate wavefunctions for k2, k3, k4 calculations
-                    var wavefunctionK2 = new Complex[_dimensions.x, _dimensions.y, _dimensions.z];
-                    var wavefunctionK3 = new Complex[_dimensions.x, _dimensions.y, _dimensions.z];
-                    var wavefunctionK4 = new Complex[_dimensions.x, _dimensions.y, _dimensions.z];
+                    var wavefunctionK2 = new Complex[_xDimension, _yDimension, _zDimension];
+                    var wavefunctionK3 = new Complex[_xDimension, _yDimension, _zDimension];
+                    var wavefunctionK4 = new Complex[_xDimension, _yDimension, _zDimension];
 
                     // Copy current wavefunction and apply k1 for k2 calculation
                     Array.Copy(_wavefunction, wavefunctionK2, _wavefunction.Length);
@@ -329,18 +336,18 @@ public class QuantumSystem
     private void Transform3D(Complex[,,] data, Action<Complex[]> transform)
     {
         // Transform along x
-        for (int y = 0; y < _dimensions.y; y++)
+        for (int y = 0; y < _yDimension; y++)
         {
-            for (int z = 0; z < _dimensions.z; z++)
+            for (int z = 0; z < _zDimension; z++)
             {
-                for (int x = 0; x < _dimensions.x; x++)
+                for (int x = 0; x < _xDimension; x++)
                 {
                     _sliceX[x] = data[x, y, z];
                 }
 
                 transform(_sliceX);
 
-                for (int x = 0; x < _dimensions.x; x++)
+                for (int x = 0; x < _xDimension; x++)
                 {
                     data[x, y, z] = _sliceX[x];
                 }
@@ -348,18 +355,18 @@ public class QuantumSystem
         }
 
         // Transform along y
-        for (int x = 0; x < _dimensions.x; x++)
+        for (int x = 0; x < _xDimension; x++)
         {
-            for (int z = 0; z < _dimensions.z; z++)
+            for (int z = 0; z < _zDimension; z++)
             {
-                for (int y = 0; y < _dimensions.y; y++)
+                for (int y = 0; y < _yDimension; y++)
                 {
                     _sliceY[y] = data[x, y, z];
                 }
 
                 transform(_sliceY);
 
-                for (int y = 0; y < _dimensions.y; y++)
+                for (int y = 0; y < _yDimension; y++)
                 {
                     data[x, y, z] = _sliceY[y];
                 }
@@ -367,18 +374,18 @@ public class QuantumSystem
         }
 
         // Transform along z
-        for (int x = 0; x < _dimensions.x; x++)
+        for (int x = 0; x < _xDimension; x++)
         {
-            for (int y = 0; y < _dimensions.y; y++)
+            for (int y = 0; y < _yDimension; y++)
             {
-                for (int z = 0; z < _dimensions.z; z++)
+                for (int z = 0; z < _zDimension; z++)
                 {
                     _sliceZ[z] = data[x, y, z];
                 }
 
                 transform(_sliceZ);
 
-                for (int z = 0; z < _dimensions.z; z++)
+                for (int z = 0; z < _zDimension; z++)
                 {
                     data[x, y, z] = _sliceZ[z];
                 }
@@ -389,24 +396,24 @@ public class QuantumSystem
     private void KineticEvolution(ref Complex[,,] wavefunction, double timeStep)
     {
         double dx = _deltaX; // Space step
-        double dkx = 2 * Math.PI / (_dimensions.x * dx); // Momentum step in x
-        double dky = 2 * Math.PI / (_dimensions.y * dx); // Assuming same space step in y
-        double dkz = 2 * Math.PI / (_dimensions.z * dx); // Assuming same space step in z
+        double dkx = 2 * Math.PI / (_xDimension * dx); // Momentum step in x
+        double dky = 2 * Math.PI / (_yDimension * dx); // Assuming same space step in y
+        double dkz = 2 * Math.PI / (_zDimension * dx); // Assuming same space step in z
 
         // Precompute phase shifts if feasible
         // For example, if you know the range of kineticEnergy values
         Dictionary<double, (double cos, double sin)> precomputedValues = new Dictionary<double, (double cos, double sin)>();
 
-        for (int x = 0; x < _dimensions.x; x++)
+        for (int x = 0; x < _xDimension; x++)
         {
-            for (int y = 0; y < _dimensions.y; y++)
+            for (int y = 0; y < _yDimension; y++)
             {
-                for (int z = 0; z < _dimensions.z; z++)
+                for (int z = 0; z < _zDimension; z++)
                 {
                     // Calculate the momentum for each dimension
-                    double kx = (x <= _dimensions.x / 2) ? x * dkx : (x - _dimensions.x) * dkx;
-                    double ky = (y <= _dimensions.y / 2) ? y * dky : (y - _dimensions.y) * dky;
-                    double kz = (z <= _dimensions.z / 2) ? z * dkz : (z - _dimensions.z) * dkz;
+                    double kx = (x <= _xDimension / 2) ? x * dkx : (x - _xDimension) * dkx;
+                    double ky = (y <= _yDimension / 2) ? y * dky : (y - _yDimension) * dky;
+                    double kz = (z <= _zDimension / 2) ? z * dkz : (z - _zDimension) * dkz;
 
                     // Calculate the kinetic energy term
                     double kineticEnergy = (kx * kx + ky * ky + kz * kz) * (_hbar * _hbar) / (2 * _mass);
@@ -428,11 +435,11 @@ public class QuantumSystem
 
     private void PotentialEvolution(ref Complex[,,] wavefunction, double timeStep)
     {
-        for (int x = 0; x < _dimensions.x; x++)
+        for (int x = 0; x < _xDimension; x++)
         {
-            for (int y = 0; y < _dimensions.y; y++)
+            for (int y = 0; y < _yDimension; y++)
             {
-                for (int z = 0; z < _dimensions.z; z++)
+                for (int z = 0; z < _zDimension; z++)
                 {
                     // Get the potential energy at this point
                     double potentialEnergy = _potential[x, y, z];
@@ -460,7 +467,7 @@ public class QuantumSystem
 
 //private void FourierTransform(ref Complex[,,] wavefunction)
 //{
-//    var output = new Complex[_dimensions.x, _dimensions.y, _dimensions.z];
+//    var output = new Complex[_xDimension, _yDimension, _zDimension];
 //    using var pinIn = new PinnedArray<Complex>(wavefunction);
 //    using var pinOut = new PinnedArray<Complex>(output);
 //    using var fftPlan = FftwPlanC2C.Create(pinIn, pinOut, DftDirection.Forwards);
@@ -470,7 +477,7 @@ public class QuantumSystem
 
 //private void InverseFourierTransform(ref Complex[,,] wavefunction)
 //{
-//    var output = new Complex[_dimensions.x, _dimensions.y, _dimensions.z];
+//    var output = new Complex[_xDimension, _yDimension, _zDimension];
 //    using var pinIn = new PinnedArray<Complex>(wavefunction);
 //    using var pinOut = new PinnedArray<Complex>(output);
 //    using var ifftPlan = FftwPlanC2C.Create(pinIn, pinOut, DftDirection.Backwards);

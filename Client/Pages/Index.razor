@@ -58,59 +58,59 @@
                 }
             </div>
             <div class="slider">
-                <label for="gaussianSigma">Radius (σ): <span>@GaussianSigma.ToString("0.0")</span></label>
-                <input type="range" min="0.1" max="10" step="0.1" id="gaussianSigma" @bind="GaussianSigma" />
+                <label for="gaussianSigma">Radius (σ): <span>@RadiusSigma.ToString("0.0")</span></label>
+                <input type="range" min="0.1" max="10" step="0.1" id="gaussianSigma" @bind="RadiusSigma" />
                 @if (_showManualInputs)
                 {
-                    <input type="number" step="0.1" @bind="GaussianSigma" />
+                    <input type="number" step="0.1" @bind="RadiusSigma" />
                 }
             </div>
             <div class="slider">
-                <label for="gaussianX0">X Position: <span>@GaussianX0.ToString("0")</span></label>
-                <input type="range" min="0" max="9" step="1" id="gaussianX0" @bind="GaussianX0" />
+                <label for="gaussianX0">X Position: <span>@ParticleXPosition.ToString("0")</span></label>
+                <input type="range" min="0" max="9" step="1" id="gaussianX0" @bind="ParticleXPosition" />
                 @if (_showManualInputs)
                 {
-                    <input type="number" step="1" @bind="GaussianX0" />
+                    <input type="number" step="1" @bind="ParticleXPosition" />
                 }
             </div>
             <div class="slider">
-                <label for="gaussianY0">Y Position: <span>@GaussianY0.ToString("0.0")</span></label>
-                <input type="range" min="0" max="9" step=".1" id="gaussianY0" @bind="GaussianY0" />
+                <label for="gaussianY0">Y Position: <span>@ParticleYPosition.ToString("0.0")</span></label>
+                <input type="range" min="0" max="9" step=".1" id="gaussianY0" @bind="ParticleYPosition" />
                 @if (_showManualInputs)
                 {
-                    <input type="number" step="1" @bind="GaussianY0" />
+                    <input type="number" step="1" @bind="ParticleYPosition" />
                 }
             </div>
             <div class="slider">
-                <label for="gaussianZ0">Z Position: <span>@GaussianZ0.ToString("0.0")</span></label>
-                <input type="range" min="0" max="9" step=".1" id="gaussianZ0" @bind="GaussianZ0" />
+                <label for="gaussianZ0">Z Position: <span>@ParticleZPosition.ToString("0.0")</span></label>
+                <input type="range" min="0" max="9" step=".1" id="gaussianZ0" @bind="ParticleZPosition" />
                 @if (_showManualInputs)
                 {
-                    <input type="number" step="1" @bind="GaussianZ0" />
+                    <input type="number" step="1" @bind="ParticleZPosition" />
                 }
             </div>
             <div class="slider">
-                <label for="gaussianKx">X Momentum: <span>@GaussianKx.ToString("0.0")</span></label>
-                <input type="range" min="-10" max="10" step=".1" id="gaussianKx" @bind="GaussianKx" />
+                <label for="gaussianKx">X Momentum: <span>@XMomentumWavenumber.ToString("0.0")</span></label>
+                <input type="range" min="-10" max="10" step=".1" id="gaussianKx" @bind="XMomentumWavenumber" />
                 @if (_showManualInputs)
                 {
-                    <input type="number" step="1" @bind="GaussianKx" />
+                    <input type="number" step="1" @bind="XMomentumWavenumber" />
                 }
             </div>
             <div class="slider">
-                <label for="gaussianKy">Y Momentum: <span>@GaussianKy.ToString("0")</span></label>
-                <input type="range" min="-10" max="10" step="1" id="gaussianKy" @bind="GaussianKy" />
+                <label for="gaussianKy">Y Momentum: <span>@YMomentumWavenumber.ToString("0")</span></label>
+                <input type="range" min="-10" max="10" step="1" id="gaussianKy" @bind="YMomentumWavenumber" />
                 @if (_showManualInputs)
                 {
-                    <input type="number" step="1" @bind="GaussianKy" />
+                    <input type="number" step="1" @bind="YMomentumWavenumber" />
                 }
             </div>
             <div class="slider">
-                <label for="gaussianKz">Z Momentum: <span>@GaussianKz.ToString("0")</span></label>
-                <input type="range" min="-10" max="10" step="1" id="gaussianKz" @bind="GaussianKz" />
+                <label for="gaussianKz">Z Momentum: <span>@ZMomentumWavenumber.ToString("0")</span></label>
+                <input type="range" min="-10" max="10" step="1" id="gaussianKz" @bind="ZMomentumWavenumber" />
                 @if (_showManualInputs)
                 {
-                    <input type="number" step="1" @bind="GaussianKz" />
+                    <input type="number" step="1" @bind="ZMomentumWavenumber" />
                 }
             </div>
             <div class="control-item">
