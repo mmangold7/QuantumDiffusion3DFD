@@ -16,7 +16,7 @@
         </div>
     </div>
     <div class="control-panel @GetControlPanelClass()">
-        <button id="toggleButton" class="toggle-controls" @onclick="ToggleControlsVisibility">
+        <button id="toggleButton" @onclick="ToggleControlsVisibility">
             @if (_areControlsVisible)
             {
                 <span>Hide Controls</span>
@@ -28,52 +28,90 @@
         </button>
         <hr class="control-divider" />
         <div class="controls" style="@(_areControlsVisible ? "display: block;" : "display:none;")">
-            <div class="control-item">
-                <button @onclick="TogglePause">@(Paused ? "Play" : "Pause")</button>
-            </div>
+            <button @onclick="TogglePause">@(Paused ? "Play" : "Pause")</button>
             <div class="slider">
                 <label for="maxFramesPerSecondSlider">Max FPS (Immediate): <span>@MaxFramesPerSecond.ToString("0")</span></label>
                 <input type="range" id="maxFramesPerSecondSlider" min="1" max="120" step="1" @bind="MaxFramesPerSecond" />
             </div>
             <div class="slider">
-                <label for="timeStepSlider">Time-step: <span>@TimeStep.ToString("0.00000")</span></label>
-                <input type="range" id="timeStepSlider" min="0.00001" max="0.001" step="0.00001" @bind="TimeStep" />
+                <label for="timeStepSlider">Time-step: <span>@TimeStep.ToString("0.00")</span></label>
+                <input type="range" id="timeStepSlider" min="0.01" max="10" step="0.01" @bind="TimeStep" />
+                @if (_showManualInputs)
+                {
+                    <input type="number" step="0.00001" @bind="TimeStep" />
+                }
             </div>
             <div class="slider">
-                <label for="hbarSlider">Quantum of Action (ℏ): <span>@Hbar.ToString("0")</span></label>
-                <input type="range" id="hbarSlider" min="1" max="100" step="1" @bind="Hbar" />
+                <label for="hbarSlider">Quantum of Action (ℏ): <span>@Hbar.ToString("0.0")</span></label>
+                <input type="range" id="hbarSlider" min="0.1" max="100" step="0.1" @bind="Hbar" />
+                @if (_showManualInputs)
+                {
+                    <input type="number" step="1" @bind="Hbar" />
+                }
             </div>
             <div class="slider">
                 <label for="massSlider">Particle Mass (m): <span>@Mass.ToString("0")</span></label>
-                <input type="range" id="massSlider" min="1" max="100" step="1" @bind="Mass" />
+                <input type="range" id="massSlider" min="1" max="100000" step="1" @bind="Mass" />
+                @if (_showManualInputs)
+                {
+                    <input type="number" step="1" @bind="Mass" />
+                }
             </div>
             <div class="slider">
                 <label for="gaussianSigma">Radius (σ): <span>@GaussianSigma.ToString("0.0")</span></label>
-                <input type="range" min=".1" max="10" step="0.1" id="gaussianSigma" @bind="GaussianSigma" />
+                <input type="range" min="0.1" max="10" step="0.1" id="gaussianSigma" @bind="GaussianSigma" />
+                @if (_showManualInputs)
+                {
+                    <input type="number" step="0.1" @bind="GaussianSigma" />
+                }
             </div>
             <div class="slider">
                 <label for="gaussianX0">X Position: <span>@GaussianX0.ToString("0")</span></label>
                 <input type="range" min="0" max="9" step="1" id="gaussianX0" @bind="GaussianX0" />
+                @if (_showManualInputs)
+                {
+                    <input type="number" step="1" @bind="GaussianX0" />
+                }
             </div>
             <div class="slider">
-                <label for="gaussianY0">Y Position: <span>@GaussianY0.ToString("0")</span></label>
-                <input type="range" min="0" max="9" step="1" id="gaussianY0" @bind="GaussianY0" />
+                <label for="gaussianY0">Y Position: <span>@GaussianY0.ToString("0.0")</span></label>
+                <input type="range" min="0" max="9" step=".1" id="gaussianY0" @bind="GaussianY0" />
+                @if (_showManualInputs)
+                {
+                    <input type="number" step="1" @bind="GaussianY0" />
+                }
             </div>
             <div class="slider">
-                <label for="gaussianZ0">Z Position: <span>@GaussianZ0.ToString("0")</span></label>
-                <input type="range" min="0" max="9" step="1" id="gaussianZ0" @bind="GaussianZ0" />
+                <label for="gaussianZ0">Z Position: <span>@GaussianZ0.ToString("0.0")</span></label>
+                <input type="range" min="0" max="9" step=".1" id="gaussianZ0" @bind="GaussianZ0" />
+                @if (_showManualInputs)
+                {
+                    <input type="number" step="1" @bind="GaussianZ0" />
+                }
             </div>
             <div class="slider">
-                <label for="gaussianKx">X Momentum: <span>@GaussianKx.ToString("0")</span></label>
-                <input type="range" min="-100" max="100" step="1" id="gaussianKx" @bind="GaussianKx" />
+                <label for="gaussianKx">X Momentum: <span>@GaussianKx.ToString("0.0")</span></label>
+                <input type="range" min="-10" max="10" step=".1" id="gaussianKx" @bind="GaussianKx" />
+                @if (_showManualInputs)
+                {
+                    <input type="number" step="1" @bind="GaussianKx" />
+                }
             </div>
             <div class="slider">
                 <label for="gaussianKy">Y Momentum: <span>@GaussianKy.ToString("0")</span></label>
-                <input type="range" min="-100" max="100" step="1" id="gaussianKy" @bind="GaussianKy" />
+                <input type="range" min="-10" max="10" step="1" id="gaussianKy" @bind="GaussianKy" />
+                @if (_showManualInputs)
+                {
+                    <input type="number" step="1" @bind="GaussianKy" />
+                }
             </div>
             <div class="slider">
                 <label for="gaussianKz">Z Momentum: <span>@GaussianKz.ToString("0")</span></label>
-                <input type="range" min="-100" max="100" step="1" id="gaussianKz" @bind="GaussianKz" />
+                <input type="range" min="-10" max="10" step="1" id="gaussianKz" @bind="GaussianKz" />
+                @if (_showManualInputs)
+                {
+                    <input type="number" step="1" @bind="GaussianKz" />
+                }
             </div>
             <div class="control-item">
                 <label for="boundaryType">Box Boundary:</label>
@@ -83,9 +121,8 @@
                     <option value="Absorbing" disabled="disabled">Absorbing (coming soon)</option>
                 </select>
             </div>
-            <div class="control-item">
-                <button @onclick="RestartSimulation">Apply & Restart</button>
-            </div>
+            <button @onclick="RestartSimulation">Apply & Restart</button>
+            <button @onclick="ToggleManualInputs">@(_showManualInputs ? "Hide" : "Show") Manual Inputs</button>
             <hr class="control-divider" />
             <div class="control-item">
                 <button @onclick="InstallApp">Install Offline</button>

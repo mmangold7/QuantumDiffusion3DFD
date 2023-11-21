@@ -14,6 +14,26 @@
     overflow: hidden;
 }
 
+.overlay-text {
+    position: absolute;
+    top: 0;
+    left: 0;
+    color: white;
+    padding: 10px;
+    z-index: 10;
+}
+
+.canvas-container {
+    position: relative;
+    width: 100%;
+    height: 70vh;
+}
+
+#threejs-canvas {
+    width: 100%;
+    height: 70vh;
+}
+
 .control-panel {
     background-color: #2B2A33;
     color: white;
@@ -48,12 +68,12 @@
     border: 1px solid black;
     border-radius: 4px;
     padding: 10px;
-    /*margin-top: 10px;*/
+    margin-top: 10px;
     cursor: pointer;
 }
 
 .control-item, .slider {
-    margin-top: 10px;
+    margin-top: 20px;
 }
 
     .slider label {
@@ -67,24 +87,20 @@
         box-sizing: border-box;
     }
 
-.overlay-text {
-    position: absolute;
-    top: 0;
-    left: 0;
-    color: white;
-    padding: 10px;
-    z-index: 10;
-}
+    .control-item input[type="number"], .slider input[type="number"] {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 5px; /* Adjust padding as needed */
+        margin-top: 5px; /* Spacing between slider and manual input */
+        border: 1px solid #ccc; /* Optional border */
+        border-radius: 4px; /* Rounded corners to match other inputs */
+    }
 
-.canvas-container {
-    position: relative;
-    width: 100%;
-    height: 70vh;
-}
-
-#threejs-canvas {
-    width: 100%;
-    height: 70vh;
+.control-divider {
+    border: none;
+    height: 1px;
+    background-color: #ddd;
+    margin: 10px 0;
 }
 
 @media (min-width: 768px) {
@@ -108,11 +124,4 @@
     #threejs-canvas {
         height: 100%;
     }
-}
-
-.control-divider {
-    border: none;
-    height: 1px;
-    background-color: #ddd; /* Adjust color as needed */
-    margin: 10px 0;
 }

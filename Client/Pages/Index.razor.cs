@@ -16,6 +16,7 @@ public partial class Index
 
     private bool _isSimulationRunning;
     private bool _areControlsVisible = true;
+    private bool _showManualInputs;
     private int _frameCount;
     private float _frameRate;
     private DateTime _lastFrameTime = DateTime.UtcNow;
@@ -27,15 +28,15 @@ public partial class Index
 
     private bool Paused { get; set; }
     private int MaxFramesPerSecond { get; set; } = 30;
-    private float TimeStep { get; set; } = 0.0001f;
+    private float TimeStep { get; set; } = 0.01f;
     private float GaussianX0 { get; set; } = BoxX / 2.0f;
     private float GaussianY0 { get; set; } = BoxY / 2.0f;
     private float GaussianZ0 { get; set; } = BoxZ / 2.0f;
-    private float GaussianSigma { get; set; } = 1;
-    private float GaussianKx { get; set; } = 20;
-    private float GaussianKy { get; set; } = -50;
-    private float GaussianKz { get; set; } = 75;
-    private float Mass { get; set; } = 10;
+    private float GaussianSigma { get; set; } = 2;
+    private float GaussianKx { get; set; } = 1;
+    private float GaussianKy { get; set; } = 1;
+    private float GaussianKz { get; set; } = 1;
+    private float Mass { get; set; } = 1000;
     private float Hbar { get; set; } = 10;
     private BoundaryType BoundaryType { get; set; } = BoundaryType.Reflective;
     private float OriginalTotalEnergy { get; set; }
@@ -271,6 +272,8 @@ public partial class Index
     }
 
     private void TogglePause() => Paused = !Paused;
+
+    private void ToggleManualInputs() => _showManualInputs = !_showManualInputs;
 
     private void ToggleControlsVisibility() => _areControlsVisible = !_areControlsVisible;
 
