@@ -12,16 +12,16 @@ public partial class Index
     private const float SpaceStep = 0.1f;
 
     private bool _isSimulationRunning;
-    private bool _areControlsVisible = true;
-    private bool _showManualInputs;
-    private int _frameCount;
-    private float _frameRate;
     private DateTime _lastFrameTime = DateTime.UtcNow;
     private float[]? _previousProbabilityData;
     private CancellationTokenSource _cancellationTokenSource = new();
 
+    private bool AreControlsVisible { get; set; } = true;
+    private bool ShowManualInputs { get; set; }
     private bool Paused { get; set; }
     private int MaxFramesPerSecond { get; set; } = 30;
+    private int FrameCount { get; set; }
+    private float FrameRate { get; set; }
     private float TimeStep { get; set; } = 0.01f;
     private float ParticleXPosition { get; set; } = BoxX / 2.0f;
     private float ParticleYPosition { get; set; } = BoxY / 2.0f;
@@ -46,18 +46,10 @@ public partial class Index
         }
     }
 
-    private async Task InstallApp()
-    {
-        var success = await JSRuntime.InvokeAsync<bool>("showPWAInstallPrompt");
-        Console.WriteLine(
-            $"Install prompt was {(success ? "" : "not")} accepted." +
-            $"{(success ? "" : " Event to trigger it might not have been caught.")}");
-    }
-
     private async Task<QuantumSystem> ResetSimAndGraphics()
     {
-        _frameCount = 0;
-        _frameRate = 0;
+        FrameCount = 0;
+        FrameRate = 0;
         OriginalTotalEnergy = 0;
         CurrentTotalEnergy = 0;
         _previousProbabilityData = null;
@@ -114,39 +106,12 @@ public partial class Index
         await Update3DDisplay(filteredData);
     }
 
-    private void UpdateEnergy(QuantumSystem quantumSystem)
-    {
-        CurrentTotalEnergy = quantumSystem.CalculateTotalEnergy();
-        if (OriginalTotalEnergy == 0) OriginalTotalEnergy = CurrentTotalEnergy;
-    }
-
-    private async Task DelayUntilNextFrame(CancellationToken token)
-    {
-        var currentFrameTime = DateTime.UtcNow;
-        var elapsed = currentFrameTime - _lastFrameTime;
-
-        if (elapsed.TotalSeconds > 0)
-            _frameRate = 1.0f / (float)elapsed.TotalSeconds;
-        _lastFrameTime = currentFrameTime;
-        _frameCount++;
-
-        var difference = (1000 / MaxFramesPerSecond) - (int)elapsed.TotalMilliseconds;
-        if (difference > 0)
-            await Task.Delay(difference, token);
-    }
-
-    public async Task Update3DDisplay(List<object> probabilityData)
-    {
-        if (probabilityData.Count > 0)
-            await JSRuntime.InvokeVoidAsync("QuantumInterop.updateThreeJsScene", probabilityData);
-    }
-
     // Prevents lag from "updating" all of the cubes in three.js that have barely changed in value
     // Ideally threshold would be calculated based on whether update would be perceivable/detectable by user (because of significantly different opacity and/or color)
     private List<object> FilterSignificantUpdates(float[] probabilityData)
     {
         var updatedData = new List<object>();
-        float maxProbability = 1;
+        var maxProbability = 1.0f;
         var updateThreshold = maxProbability * 0.1f;
         var opacityScale = 0.75f;
 
@@ -167,6 +132,27 @@ public partial class Index
         return updatedData;
     }
 
+    private void UpdateEnergy(QuantumSystem quantumSystem)
+    {
+        CurrentTotalEnergy = quantumSystem.CalculateTotalEnergy();
+        if (OriginalTotalEnergy == 0) OriginalTotalEnergy = CurrentTotalEnergy;
+    }
+
+    private async Task DelayUntilNextFrame(CancellationToken token)
+    {
+        var currentFrameTime = DateTime.UtcNow;
+        var elapsed = currentFrameTime - _lastFrameTime;
+
+        if (elapsed.TotalSeconds > 0)
+            FrameRate = 1.0f / (float)elapsed.TotalSeconds;
+        _lastFrameTime = currentFrameTime;
+        FrameCount++;
+
+        var difference = (1000 / MaxFramesPerSecond) - (int)elapsed.TotalMilliseconds;
+        if (difference > 0)
+            await Task.Delay(difference, token);
+    }
+
     private async Task RestartSimulation()
     {
         if (_isSimulationRunning)
@@ -181,7 +167,21 @@ public partial class Index
     }
 
     private void TogglePause() => Paused = !Paused;
-    private void ToggleManualInputs() => _showManualInputs = !_showManualInputs;
-    private void ToggleControlsVisibility() => _areControlsVisible = !_areControlsVisible;
-    private string GetControlPanelClass() => _areControlsVisible ? "expanded" : "collapsed";
+    private void ToggleManualInputs() => ShowManualInputs = !ShowManualInputs;
+    private void ToggleControlsVisibility() => AreControlsVisible = !AreControlsVisible;
+    private string GetControlPanelClass() => AreControlsVisible ? "expanded" : "collapsed";
+
+    public async Task Update3DDisplay(List<object> probabilityData)
+    {
+        if (probabilityData.Count > 0)
+            await JSRuntime.InvokeVoidAsync("QuantumInterop.updateThreeJsScene", probabilityData);
+    }
+
+    private async Task InstallApp()
+    {
+        var success = await JSRuntime.InvokeAsync<bool>("showPWAInstallPrompt");
+        Console.WriteLine(
+            $"Install prompt was {(success ? "" : "not")} accepted." +
+            $"{(success ? "" : " Event to trigger it might not have been caught.")}");
+    }
 }
