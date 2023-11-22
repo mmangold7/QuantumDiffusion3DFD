@@ -16,7 +16,7 @@ public class QuantumSystem
     private readonly Complex[,,] _laplacian;
     private readonly float[,,] _potential;
     private readonly float[] _probability;
-    private float[] _previousProbabilityData;
+    private readonly float[] _previousProbabilityData;
     private float? _originalTotalEnergy;
 
     public QuantumSystem(
@@ -32,6 +32,7 @@ public class QuantumSystem
         _xDimension = x;
         _yDimension = y;
         _zDimension = z;
+        _boundaryType = boundaryType;
         _sliceX = new Complex[x];
         _sliceY = new Complex[y];
         _sliceZ = new Complex[z];
@@ -40,7 +41,6 @@ public class QuantumSystem
         _potential = new float[x, y, z];
         _probability = new float[x * y * z];
         _previousProbabilityData = new float[x * y * z];
-        _boundaryType = boundaryType;
     }
 
     public void InitializeGaussianPacket(
@@ -88,7 +88,7 @@ public class QuantumSystem
         return 1.0 / Math.Sqrt(sum);
     }
 
-    public QuantumState UpdateSimulation()
+    public QuantumState UpdateSimulation(bool onlySignificantlyChanged)
     {
         var newTotalEnergy = 0.0f;
         var flattenedData = new float[_xDimension * _yDimension * _zDimension];
@@ -118,14 +118,11 @@ public class QuantumSystem
 
         _originalTotalEnergy ??= newTotalEnergy;
 
-        var significantlyChangedProbabilityData = GetSignificantlyChangedProbability(flattenedData);
-
         return new QuantumState
         {
             OriginalTotalEnergy = _originalTotalEnergy.Value,
             CurrentTotalEnergy = newTotalEnergy,
-            ProbabilityData = _probability,
-            SignificantlyChangedProbabilityData = significantlyChangedProbabilityData
+            ProbabilityData = GetProbability(flattenedData, onlySignificantlyChanged)
         };
     }
 
@@ -147,9 +144,7 @@ public class QuantumSystem
         return totalEnergy;
     }
 
-    // Prevents lag from "updating" all of the cubes in three.js that have barely changed in value
-    // Ideally threshold would be calculated based on whether update would be perceivable/detectable by user (because of significantly different opacity and/or color)
-    public List<object> GetSignificantlyChangedProbability(float[] probabilityData)
+    public List<object> GetProbability(float[] probabilityData, bool onlySignificantlyChanged = false)
     {
         var updatedData = new List<object>();
         var maxProbability = 1.0f;
@@ -159,17 +154,16 @@ public class QuantumSystem
         for (int i = 0; i < probabilityData.Length; i++)
         {
             var newProbability = probabilityData[i];
-            if (_previousProbabilityData == null ||
-                Math.Abs(newProbability - _previousProbabilityData[i]) > updateThreshold)
+            if (!onlySignificantlyChanged || Math.Abs(newProbability - _previousProbabilityData[i]) > updateThreshold)
             {
                 var color = GraphicsExtensions.InterpolateColor(newProbability);
                 var opacity = GraphicsExtensions.SigmoidOpacity(newProbability * opacityScale);
                 updatedData.Add(new { index = i, color, opacity });
-                if (_previousProbabilityData != null) _previousProbabilityData[i] = newProbability;
+                _previousProbabilityData[i] = newProbability;
             }
         }
 
-        _previousProbabilityData ??= probabilityData;
+        //_previousProbabilityData ??= probabilityData;
         return updatedData;
     }
 
