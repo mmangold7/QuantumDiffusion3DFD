@@ -21,6 +21,7 @@ public class QuantumSystem
     private readonly double _mass;
     private readonly double _timeStep;
     private readonly double _deltaX;
+    private float[]? _previousProbabilityData;
 
     public QuantumSystem(
         int x,
@@ -452,6 +453,33 @@ public class QuantumSystem
                 }
             }
         }
+    }
+
+    // Prevents lag from "updating" all of the cubes in three.js that have barely changed in value
+    // Ideally threshold would be calculated based on whether update would be perceivable/detectable by user (because of significantly different opacity and/or color)
+    public List<object> GetSignificantlyChangedProbability()
+    {
+        var probabilityData = GetNormalizedProbabilityData();
+        var updatedData = new List<object>();
+        var maxProbability = 1.0f;
+        var updateThreshold = maxProbability * 0.1f;
+        var opacityScale = 0.75f;
+
+        for (int i = 0; i < probabilityData.Length; i++)
+        {
+            var newProbability = probabilityData[i];
+            if (_previousProbabilityData == null ||
+                Math.Abs(newProbability - _previousProbabilityData[i]) > updateThreshold)
+            {
+                var color = GraphicsExtensions.InterpolateColor(newProbability);
+                var opacity = GraphicsExtensions.SigmoidOpacity(newProbability * opacityScale);
+                updatedData.Add(new { index = i, color, opacity });
+                if (_previousProbabilityData != null) _previousProbabilityData[i] = newProbability;
+            }
+        }
+
+        _previousProbabilityData ??= probabilityData;
+        return updatedData;
     }
 }
 

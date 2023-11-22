@@ -11,11 +11,6 @@ public partial class Index
     private const int BoxZ = CubeDimensionSize;
     private const float SpaceStep = 0.1f;
 
-    private bool _isSimulationRunning;
-    private DateTime _lastFrameTime = DateTime.UtcNow;
-    private float[]? _previousProbabilityData;
-    private CancellationTokenSource _cancellationTokenSource = new();
-
     private bool AreControlsVisible { get; set; } = true;
     private bool ShowManualInputs { get; set; }
     private bool Paused { get; set; }
@@ -46,13 +41,23 @@ public partial class Index
         }
     }
 
+    private CancellationTokenSource _cancellationTokenSource = new();
+    private async Task RestartSimulation()
+    {
+        _cancellationTokenSource.Cancel();
+        _cancellationTokenSource.Dispose();
+        _cancellationTokenSource = new CancellationTokenSource();
+
+        var newSystem = await ResetSimAndGraphics();
+        await StartSimulation(newSystem, _cancellationTokenSource.Token);
+    }
+
     private async Task<QuantumSystem> ResetSimAndGraphics()
     {
         FrameCount = 0;
         FrameRate = 0;
         OriginalTotalEnergy = 0;
         CurrentTotalEnergy = 0;
-        _previousProbabilityData = null;
 
         var newSystem = new QuantumSystem(
             BoxX, BoxY, BoxZ, BoundaryType, TimeStep, SpaceStep, Mass, Hbar);
@@ -61,15 +66,13 @@ public partial class Index
             RadiusSigma, 
             XMomentumWavenumber, YMomentumWavenumber, ZMomentumWavenumber);
 
-        await UpdateProbabilityData(newSystem);
+        await Update3DProbabilityDisplay(newSystem);
         StateHasChanged();
         return newSystem;
     }
 
     private async Task StartSimulation(QuantumSystem quantumSystem, CancellationToken token)
     {
-        _isSimulationRunning = true;
-
         while (!token.IsCancellationRequested)
         {
             if (Paused) await Task.Delay(100, token); // Small delay to reduce CPU usage
@@ -83,7 +86,7 @@ public partial class Index
                         UpdateEnergy(quantumSystem), "UpdateEnergy(quantumSystem)"); 
 
                     await Profiling.RunWithClockingLogAsync(() => 
-                        UpdateProbabilityData(quantumSystem), "UpdateProbabilityData(quantumSystem)");
+                        Update3DProbabilityDisplay(quantumSystem), "UpdateProbabilityData(quantumSystem)");
                 }, token);
 
                 if (token.IsCancellationRequested) break;
@@ -95,49 +98,9 @@ public partial class Index
                     InvokeAsync(StateHasChanged), "InvokeAsync(StateHasChanged)");
             }
         }
-
-        _isSimulationRunning = false;
     }
 
-    private async Task UpdateProbabilityData(QuantumSystem quantumSystem)
-    {
-        var newProbabilityData = quantumSystem.GetNormalizedProbabilityData();
-        var filteredData = FilterSignificantUpdates(newProbabilityData);
-        await Update3DDisplay(filteredData);
-    }
-
-    // Prevents lag from "updating" all of the cubes in three.js that have barely changed in value
-    // Ideally threshold would be calculated based on whether update would be perceivable/detectable by user (because of significantly different opacity and/or color)
-    private List<object> FilterSignificantUpdates(float[] probabilityData)
-    {
-        var updatedData = new List<object>();
-        var maxProbability = 1.0f;
-        var updateThreshold = maxProbability * 0.1f;
-        var opacityScale = 0.75f;
-
-        for (int i = 0; i < probabilityData.Length; i++)
-        {
-            var newProbability = probabilityData[i];
-            if (_previousProbabilityData == null ||
-                Math.Abs(newProbability - _previousProbabilityData[i]) > updateThreshold)
-            {
-                var color = GraphicsExtensions.InterpolateColor(newProbability);
-                var opacity = GraphicsExtensions.SigmoidOpacity(newProbability * opacityScale);
-                updatedData.Add(new { index = i, color, opacity });
-                if (_previousProbabilityData != null) _previousProbabilityData[i] = newProbability;
-            }
-        }
-
-        _previousProbabilityData ??= probabilityData;
-        return updatedData;
-    }
-
-    private void UpdateEnergy(QuantumSystem quantumSystem)
-    {
-        CurrentTotalEnergy = quantumSystem.CalculateTotalEnergy();
-        if (OriginalTotalEnergy == 0) OriginalTotalEnergy = CurrentTotalEnergy;
-    }
-
+    private DateTime _lastFrameTime = DateTime.UtcNow;
     private async Task DelayUntilNextFrame(CancellationToken token)
     {
         var currentFrameTime = DateTime.UtcNow;
@@ -153,29 +116,23 @@ public partial class Index
             await Task.Delay(difference, token);
     }
 
-    private async Task RestartSimulation()
+    private async Task Update3DProbabilityDisplay(QuantumSystem quantumSystem)
     {
-        if (_isSimulationRunning)
-        {
-            _cancellationTokenSource.Cancel();
-            _cancellationTokenSource.Dispose();
-            _cancellationTokenSource = new CancellationTokenSource();
-        }
+        var filteredData = quantumSystem.GetSignificantlyChangedProbability();
+        if (filteredData.Count > 0)
+            await JSRuntime.InvokeVoidAsync("QuantumInterop.updateThreeJsScene", filteredData);
+    }
 
-        var newSystem = await ResetSimAndGraphics();
-        await StartSimulation(newSystem, _cancellationTokenSource.Token);
+    private void UpdateEnergy(QuantumSystem quantumSystem)
+    {
+        CurrentTotalEnergy = quantumSystem.CalculateTotalEnergy();
+        if (OriginalTotalEnergy == 0) OriginalTotalEnergy = CurrentTotalEnergy;
     }
 
     private void TogglePause() => Paused = !Paused;
     private void ToggleManualInputs() => ShowManualInputs = !ShowManualInputs;
     private void ToggleControlsVisibility() => AreControlsVisible = !AreControlsVisible;
     private string GetControlPanelClass() => AreControlsVisible ? "expanded" : "collapsed";
-
-    public async Task Update3DDisplay(List<object> probabilityData)
-    {
-        if (probabilityData.Count > 0)
-            await JSRuntime.InvokeVoidAsync("QuantumInterop.updateThreeJsScene", probabilityData);
-    }
 
     private async Task InstallApp()
     {
