@@ -10,6 +10,8 @@ public partial class Index
     private const int BoxY = CubeDimensionSize;
     private const int BoxZ = CubeDimensionSize;
     private const float SpaceStep = 0.1f;
+    private DateTime _lastFrameTime = DateTime.UtcNow;
+    private CancellationTokenSource _simLoopCancel = new();
 
     private bool AreControlsVisible { get; set; } = true;
     private bool ShowManualInputs { get; set; }
@@ -39,16 +41,19 @@ public partial class Index
             await RestartSimulation();
         }
     }
-
-    private CancellationTokenSource _simLoopCancel = new();
+    
     private async Task RestartSimulation()
+    {
+        CancelSimulation();
+        var newSystem = await ResetSimAndGraphics(_simLoopCancel.Token);
+        await StartSimulation(newSystem, _simLoopCancel.Token);
+    }
+
+    private void CancelSimulation()
     {
         _simLoopCancel.Cancel();
         _simLoopCancel.Dispose();
         _simLoopCancel = new CancellationTokenSource();
-
-        var newSystem = await ResetSimAndGraphics(_simLoopCancel.Token);
-        await StartSimulation(newSystem, _simLoopCancel.Token);
     }
 
     private async Task<QuantumSystem> ResetSimAndGraphics(CancellationToken simLoopCancelToken)
@@ -84,14 +89,15 @@ public partial class Index
     private async Task UpdateUi(QuantumSystem newSystem, bool useAllData, CancellationToken simLoopCancelToken)
     {
         var newState = newSystem.UpdateSimulation(!useAllData);
+
         UpdateEnergyDisplay(newState.CurrentTotalEnergy);
         var filteredData = newState.ProbabilityData;
         if (filteredData.Count > 0) await Update3dDisplay(filteredData);
+
         await DelayUntilNextRequestedFrame(simLoopCancelToken);
         await InvokeAsync(StateHasChanged);
     }
 
-    private DateTime _lastFrameTime = DateTime.UtcNow;
     private async Task DelayUntilNextRequestedFrame(CancellationToken simLoopCancelToken)
     {
         var currentFrameTime = DateTime.UtcNow;
