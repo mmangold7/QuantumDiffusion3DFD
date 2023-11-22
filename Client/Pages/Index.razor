@@ -53,17 +53,17 @@
             </div>
             <div class="slider">
                 <label for="gaussianY0">Y Position: <span>@ParticleYPosition.ToString("0.0")</span></label>
-                <input type="range" min="0" max="9" step=".1" id="gaussianY0" @bind="ParticleYPosition" />
+                <input type="range" min="0" max="9" step="1" id="gaussianY0" @bind="ParticleYPosition" />
                 <input hidden="@(!ShowManualInputs)" type="number" step="1" @bind="ParticleYPosition" />
             </div>
             <div class="slider">
                 <label for="gaussianZ0">Z Position: <span>@ParticleZPosition.ToString("0.0")</span></label>
-                <input type="range" min="0" max="9" step=".1" id="gaussianZ0" @bind="ParticleZPosition" />
+                <input type="range" min="0" max="9" step="1" id="gaussianZ0" @bind="ParticleZPosition" />
                 <input hidden="@(!ShowManualInputs)" type="number" step="1" @bind="ParticleZPosition" />
             </div>
             <div class="slider">
                 <label for="gaussianKx">X Momentum: <span>@XMomentumWavenumber.ToString("0.0")</span></label>
-                <input type="range" min="-10" max="10" step=".1" id="gaussianKx" @bind="XMomentumWavenumber" />
+                <input type="range" min="-10" max="10" step="1" id="gaussianKx" @bind="XMomentumWavenumber" />
                 <input hidden="@(!ShowManualInputs)" type="number" step="1" @bind="XMomentumWavenumber" />
             </div>
             <div class="slider">

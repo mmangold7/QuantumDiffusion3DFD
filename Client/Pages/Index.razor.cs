@@ -116,17 +116,17 @@ public partial class Index
             await Task.Delay(difference, token);
     }
 
+    private void UpdateEnergy(QuantumSystem quantumSystem)
+    {
+        CurrentTotalEnergy = quantumSystem.CalculateTotalEnergy();
+        if (OriginalTotalEnergy == 0) OriginalTotalEnergy = CurrentTotalEnergy;
+    }
+
     private async Task Update3DProbabilityDisplay(QuantumSystem quantumSystem)
     {
         var filteredData = quantumSystem.GetSignificantlyChangedProbability();
         if (filteredData.Count > 0)
             await JSRuntime.InvokeVoidAsync("QuantumInterop.updateThreeJsScene", filteredData);
-    }
-
-    private void UpdateEnergy(QuantumSystem quantumSystem)
-    {
-        CurrentTotalEnergy = quantumSystem.CalculateTotalEnergy();
-        if (OriginalTotalEnergy == 0) OriginalTotalEnergy = CurrentTotalEnergy;
     }
 
     private void TogglePause() => Paused = !Paused;
