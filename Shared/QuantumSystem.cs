@@ -1,29 +1,29 @@
-using MathNet.Numerics.IntegralTransforms;
 using System.Numerics;
 
 namespace QuantumDiffusion3DFD.Shared;
 
 public class QuantumSystem
 {
-    // todo
-    // refactor so that all the interaction logic happens in one place, one time, and returns a complex type result with everything
-    private readonly double _hbar;
-    private readonly double _mass;
-    private readonly double _timeStep;
-    private readonly double _spaceStep;
+    private readonly float _hbar;
+    private readonly float _mass;
+    private readonly float _timeStep;
+    private readonly float _spaceStep;
     private readonly int _xDimension, _yDimension, _zDimension;
+    private readonly BoundaryType _boundaryType;
+
     private Complex[]? _sliceX, _sliceY, _sliceZ;
     private Complex[,,] _wavefunction;
-    private readonly Complex[,,] _laplacianWavefunction;
-    private readonly double[,,] _potential;
-    private float[]? _previousProbabilityData;
-    private readonly BoundaryType _boundaryType;
+    private readonly Complex[,,] _laplacian;
+    private readonly float[,,] _potential;
+    private readonly float[] _probability;
+    private float[] _previousProbabilityData;
+    private float? _originalTotalEnergy;
 
     public QuantumSystem(
         int x, int y, int z,
         BoundaryType boundaryType,
-        double timeStep, double spaceStep, 
-        double mass, double hbar)
+        float timeStep, float spaceStep,
+        float mass, float hbar)
     {
         _mass = mass;
         _hbar = hbar;
@@ -36,8 +36,10 @@ public class QuantumSystem
         _sliceY = new Complex[y];
         _sliceZ = new Complex[z];
         _wavefunction = new Complex[x, y, z];
-        _laplacianWavefunction = new Complex[x, y, z];
-        _potential = new double[x, y, z];
+        _laplacian = new Complex[x, y, z];
+        _potential = new float[x, y, z];
+        _probability = new float[x * y * z];
+        _previousProbabilityData = new float[x * y * z];
         _boundaryType = boundaryType;
     }
 
@@ -59,7 +61,7 @@ public class QuantumSystem
                     var imaginaryPart = Math.Exp(exponent) * Math.Sin(phase);
 
                     _wavefunction[x, y, z] = new Complex(realPart, imaginaryPart) * normalizedAmplitude;
-                    _laplacianWavefunction[x, y, z] = CalculateLaplacian(_wavefunction, x, y, z, _boundaryType);
+                    _laplacian[x, y, z] = CalculateLaplacian(_wavefunction, x, y, z, _boundaryType);
                 }
             }
         }
@@ -86,9 +88,10 @@ public class QuantumSystem
         return 1.0 / Math.Sqrt(sum);
     }
 
-    public void ApplySingleTimeEvolutionStepEuler()
+    public QuantumState UpdateSimulation()
     {
-        var newWavefunction = new Complex[_xDimension, _yDimension, _zDimension];
+        var newTotalEnergy = 0.0f;
+        var flattenedData = new float[_xDimension * _yDimension * _zDimension];
 
         for (var x = 0; x < _xDimension; x++)
         {
@@ -96,95 +99,58 @@ public class QuantumSystem
             {
                 for (var z = 0; z < _zDimension; z++)
                 {
-                    _laplacianWavefunction[x, y, z] = CalculateLaplacian(_wavefunction, x, y, z, _boundaryType);
-                    var timeDerivative = (-_hbar * _hbar / (2 * _mass)) * _laplacianWavefunction[x, y, z] + _potential[x, y, z] * _wavefunction[x, y, z];
-                    newWavefunction[x, y, z] = _wavefunction[x, y, z] - (Complex.ImaginaryOne / _hbar) * timeDerivative * _timeStep;
+                    var pointWaveValue = UpdateWavefunctionPoint(x, y, z);
+                    var psiMag = (float)pointWaveValue.Magnitude;
+                    var potentialAtPoint = _potential[x, y, z];
+                    var laplacianAtPoint = _laplacian[x, y, z];
+                    var pointProbabilityDensity = psiMag * psiMag;
+                    var flatIndex = x * _yDimension * _zDimension + y * _zDimension + z;
+                    _probability[flatIndex] = pointProbabilityDensity;
+                    newTotalEnergy += CalculateEnergyAtPoint(
+                        pointWaveValue, pointProbabilityDensity, potentialAtPoint, laplacianAtPoint);
                 }
             }
         }
-        _wavefunction = newWavefunction;
+
+        var newMaxProbability = _probability.Max();
+        for (var i = 0; i < _probability.Length; i++)
+            flattenedData[i] = _probability[i] / newMaxProbability;
+
+        _originalTotalEnergy ??= newTotalEnergy;
+
+        var significantlyChangedProbabilityData = GetSignificantlyChangedProbability(flattenedData);
+
+        return new QuantumState
+        {
+            OriginalTotalEnergy = _originalTotalEnergy.Value,
+            CurrentTotalEnergy = newTotalEnergy,
+            ProbabilityData = _probability,
+            SignificantlyChangedProbabilityData = significantlyChangedProbabilityData
+        };
     }
 
-    public float CalculateTotalEnergy()
+    private Complex UpdateWavefunctionPoint(int x, int y, int z)
     {
-        var totalEnergy = 0.0;
-
-        for (var x = 0; x < _xDimension; x++)
-        {
-            for (var y = 0; y < _yDimension; y++)
-            {
-                for (var z = 0; z < _zDimension; z++)
-                {
-                    var psi = _wavefunction[x, y, z];
-                    var probabilityDensity = psi.Magnitude * psi.Magnitude;
-
-                    var laplacianPsi = _laplacianWavefunction[x, y, z]; // Use the stored Laplacian
-                    var kineticEnergy = -(_hbar * _hbar / (2 * _mass)) * (laplacianPsi * Complex.Conjugate(psi)).Real;
-
-                    var potentialEnergy = _potential[x, y, z] * probabilityDensity;
-                    totalEnergy += kineticEnergy + potentialEnergy;
-                }
-            }
-        }
-
-        return (float)totalEnergy;
+        _laplacian[x, y, z] = CalculateLaplacian(_wavefunction, x, y, z, _boundaryType);
+        var timeDerivative = (-_hbar * _hbar / (2 * _mass)) * _laplacian[x, y, z] + _potential[x, y, z] * _wavefunction[x, y, z];
+        var newPointValue = _wavefunction[x, y, z] - (Complex.ImaginaryOne / _hbar) * timeDerivative * _timeStep;
+        _wavefunction[x, y, z] = newPointValue;
+        return newPointValue;
     }
 
-    public double[,,] CalculateProbabilityDensity()
+    private float CalculateEnergyAtPoint(
+        Complex psi, float probabilityDensityAtPoint, float potentialAtPoint, Complex laplacianAtPoint)
     {
-        var probabilityDensity = new double[_xDimension, _yDimension, _zDimension];
-
-        for (var x = 0; x < _xDimension; x++)
-        {
-            for (var y = 0; y < _yDimension; y++)
-            {
-                for (var z = 0; z < _zDimension; z++)
-                {
-                    var psi = _wavefunction[x, y, z];
-                    probabilityDensity[x, y, z] = psi.Magnitude * psi.Magnitude; // |psi|^2
-                }
-            }
-        }
-
-        return probabilityDensity;
-    }
-
-    public float[] GetNormalizedProbabilityData(bool normalize = true)
-    {
-        var probabilityDensity = CalculateProbabilityDensity();
-        var flattenedData = new List<float>();
-
-        for (var x = 0; x < _xDimension; x++)
-        {
-            for (var y = 0; y < _yDimension; y++)
-            {
-                for (var z = 0; z < _zDimension; z++)
-                {
-                    var probability = (float)probabilityDensity[x, y, z];
-
-                    if (float.IsNaN(probability) || float.IsInfinity(probability))
-                        probability = 0;  // Or handle this case as appropriate
-
-                    flattenedData.Add(probability);
-                }
-            }
-        }
-
-        if (normalize)
-        {
-            var maxProbability = flattenedData.Any() ? flattenedData.Max() : 0.0f;
-            for (var i = 0; i < flattenedData.Count; i++)
-                flattenedData[i] /= maxProbability;
-        }
-
-        return flattenedData.ToArray();
+        var potentialEnergy = potentialAtPoint * probabilityDensityAtPoint;
+        var kineticEnergy = -(_hbar * _hbar / (2 * _mass)) * (float)((laplacianAtPoint * Complex.Conjugate(psi)).Real);
+        var totalEnergy = kineticEnergy + potentialEnergy;
+        return totalEnergy;
     }
 
     // Prevents lag from "updating" all of the cubes in three.js that have barely changed in value
     // Ideally threshold would be calculated based on whether update would be perceivable/detectable by user (because of significantly different opacity and/or color)
-    public List<object> GetSignificantlyChangedProbability()
+    public List<object> GetSignificantlyChangedProbability(float[] probabilityData)
     {
-        var probabilityData = GetNormalizedProbabilityData();
         var updatedData = new List<object>();
         var maxProbability = 1.0f;
         var updateThreshold = maxProbability * 0.1f;

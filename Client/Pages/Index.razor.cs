@@ -66,7 +66,9 @@ public partial class Index
             RadiusSigma, 
             XMomentumWavenumber, YMomentumWavenumber, ZMomentumWavenumber);
 
-        await Update3DProbabilityDisplay(newSystem);
+        var newState = newSystem.UpdateSimulation();
+        UpdateEnergy(newState.CurrentTotalEnergy);
+        await Update3DProbabilityDisplay(newState.SignificantlyChangedProbabilityData);
         StateHasChanged();
         return newSystem;
     }
@@ -80,22 +82,15 @@ public partial class Index
             {
                 await Task.Run(async () =>
                 {
-                    Profiling.RunWithClockingLog(quantumSystem.ApplySingleTimeEvolutionStepEuler);
-
-                    Profiling.RunWithClockingLog(() => 
-                        UpdateEnergy(quantumSystem), "UpdateEnergy(quantumSystem)"); 
-
-                    await Profiling.RunWithClockingLogAsync(() => 
-                        Update3DProbabilityDisplay(quantumSystem), "UpdateProbabilityData(quantumSystem)");
+                    var newState = quantumSystem.UpdateSimulation();
+                    UpdateEnergy(newState.CurrentTotalEnergy);
+                    await Update3DProbabilityDisplay(newState.SignificantlyChangedProbabilityData);
                 }, token);
 
                 if (token.IsCancellationRequested) break;
-                
-                await Profiling.RunWithClockingLogAsync(() => 
-                    DelayUntilNextFrame(token), "DelayUntilNextFrame(token)");
 
-                await Profiling.RunWithClockingLogAsync(() => 
-                    InvokeAsync(StateHasChanged), "InvokeAsync(StateHasChanged)");
+                await DelayUntilNextFrame(token);
+                await InvokeAsync(StateHasChanged);
             }
         }
     }
@@ -116,15 +111,14 @@ public partial class Index
             await Task.Delay(difference, token);
     }
 
-    private void UpdateEnergy(QuantumSystem quantumSystem)
+    private void UpdateEnergy(float newEnergy)
     {
-        CurrentTotalEnergy = quantumSystem.CalculateTotalEnergy();
+        CurrentTotalEnergy = newEnergy;
         if (OriginalTotalEnergy == 0) OriginalTotalEnergy = CurrentTotalEnergy;
     }
 
-    private async Task Update3DProbabilityDisplay(QuantumSystem quantumSystem)
+    private async Task Update3DProbabilityDisplay(List<object> filteredData)
     {
-        var filteredData = quantumSystem.GetSignificantlyChangedProbability();
         if (filteredData.Count > 0)
             await JSRuntime.InvokeVoidAsync("QuantumInterop.updateThreeJsScene", filteredData);
     }
