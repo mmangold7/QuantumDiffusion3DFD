@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace QuantumDiffusion3DFD.Shared;
+namespace QuantumDiffusion3DFD.Shared.Extensions;
 
 public static class Profiling
 {

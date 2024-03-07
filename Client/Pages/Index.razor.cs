@@ -1,5 +1,6 @@
 ﻿using Microsoft.JSInterop;
 using QuantumDiffusion3DFD.Shared;
+using QuantumDiffusion3DFD.Shared.Models.Enums;
 
 namespace QuantumDiffusion3DFD.Client.Pages;
 
@@ -10,15 +11,10 @@ public partial class Index
     private const int BoxY = CubeDimensionSize;
     private const int BoxZ = CubeDimensionSize;
     private const float SpaceStep = 0.1f;
-    private DateTime _lastFrameTime = DateTime.UtcNow;
-    private CancellationTokenSource _simLoopCancel = new();
 
     private bool AreControlsVisible { get; set; } = true;
     private bool ShowManualInputs { get; set; }
-    private bool Paused { get; set; }
-    private int MaxFramesPerSecond { get; set; } = 30;
-    private int FrameCount { get; set; }
-    private float FrameRate { get; set; }
+    
     private float TimeStep { get; set; } = 0.01f;
     private float ParticleXPosition { get; set; } = BoxX / 2.0f;
     private float ParticleYPosition { get; set; } = BoxY / 2.0f;
@@ -33,11 +29,19 @@ public partial class Index
     private float CurrentTotalEnergy { get; set; }
     private BoundaryType BoundaryType { get; set; } = BoundaryType.Reflective;
 
+
+
+    private DateTime _lastFrameTime = DateTime.UtcNow;
+    private CancellationTokenSource _simLoopCancel = new();
+    private int MaxFramesPerSecond { get; set; } = 30;
+    private int FrameCount { get; set; }
+    private float FrameRate { get; set; }
+    private bool Paused { get; set; }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            await Init3dDisplay();
             await RestartSimulation();
         }
     }
@@ -45,8 +49,8 @@ public partial class Index
     private async Task RestartSimulation()
     {
         CancelSimulation();
-        var newSystem = await ResetSimAndGraphics(_simLoopCancel.Token);
-        await StartSimulation(newSystem, _simLoopCancel.Token);
+        var newQuantumSystem = await ResetSimAndGraphics(_simLoopCancel.Token);
+        await StartSimulation(newQuantumSystem, _simLoopCancel.Token);
     }
 
     private void CancelSimulation()
@@ -63,36 +67,50 @@ public partial class Index
         OriginalTotalEnergy = 0;
         CurrentTotalEnergy = 0;
 
-        var newSystem = new QuantumSystem(
+        var quantumSystem = new QuantumSystem(
             BoxX, BoxY, BoxZ, BoundaryType, TimeStep, SpaceStep, Mass, Hbar);
-        newSystem.InitializeGaussianPacket(
-            ParticleXPosition, ParticleYPosition, ParticleZPosition, 
-            RadiusSigma, 
+        quantumSystem.InitializeGaussianPacket(
+            ParticleXPosition, ParticleYPosition, ParticleZPosition,
+            RadiusSigma,
             XMomentumWavenumber, YMomentumWavenumber, ZMomentumWavenumber);
 
-        await UpdateUi(newSystem, true, simLoopCancelToken);
-        StateHasChanged();
-        return newSystem;
+        //var classicalSystem = new ClassicalSystem(
+        //    BoxX, BoxY, BoxZ, BoundaryType, TimeStep, SpaceStep, Mass);
+        //classicalSystem.InitializeParticle(
+        //    ParticleXPosition, ParticleYPosition, ParticleZPosition,
+        //    XMomentumWavenumber, YMomentumWavenumber, ZMomentumWavenumber, RadiusSigma);
+
+        await Init3dDisplay();
+        //await UpdateUi(quantumSystem, classicalSystem, true, simLoopCancelToken);
+        await UpdateUi(quantumSystem, true, simLoopCancelToken);
+        //return (quantumSystem, classicalSystem);
+        return quantumSystem;
     }
 
     private async Task StartSimulation(QuantumSystem quantumSystem, CancellationToken simLoopCancelToken)
     {
         while (!simLoopCancelToken.IsCancellationRequested)
         {
-            if (Paused) await Task.Delay(100, simLoopCancelToken); // Small delay to reduce CPU usage
-            else await Task.Run(async () => 
-                await UpdateUi(quantumSystem, false, simLoopCancelToken), simLoopCancelToken);
-            //if (simLoopCancelToken.IsCancellationRequested) break;
+            if (Paused)
+                await Task.Delay(100, simLoopCancelToken); // Small delay to reduce CPU usage
+            
+            else
+                await Task.Run(async () =>
+                    await UpdateUi(quantumSystem, false, simLoopCancelToken), simLoopCancelToken);
         }
     }
 
-    private async Task UpdateUi(QuantumSystem newSystem, bool useAllData, CancellationToken simLoopCancelToken)
+    private async Task UpdateUi(QuantumSystem quantumSystem, bool useAllData, CancellationToken simLoopCancelToken)
     {
-        var newState = newSystem.UpdateSimulation(!useAllData);
+        var quantumState = quantumSystem.UpdateSimulation(!useAllData);
+        //classicalSystem?.Update();
 
-        UpdateEnergyDisplay(newState.CurrentTotalEnergy);
-        var filteredData = newState.ProbabilityData;
-        if (filteredData.Count > 0) await Update3dDisplay(filteredData);
+        UpdateEnergyDisplay(quantumState.CurrentTotalEnergy);
+
+        var filteredQuantumData = quantumState.ProbabilityData;
+        //var classicalData = new { posX = classicalSystem?.Position.X, posY = classicalSystem?.Position.Y, posZ = classicalSystem?.Position.Z };
+        if (filteredQuantumData.Count > 0 )
+            await Update3dDisplay(filteredQuantumData);
 
         await DelayUntilNextRequestedFrame(simLoopCancelToken);
         await InvokeAsync(StateHasChanged);
@@ -126,7 +144,7 @@ public partial class Index
 
     private async Task Init3dDisplay() =>
         await JSRuntime.InvokeVoidAsync("QuantumInterop.initializeThreeJs",
-            new { x = BoxX, y = BoxY, z = BoxZ }, SpaceStep);
+            new { x = BoxX, y = BoxY, z = BoxZ }, SpaceStep, RadiusSigma);
 
     private async Task Update3dDisplay(List<object> filteredData) =>
         await JSRuntime.InvokeVoidAsync("QuantumInterop.updateThreeJsScene", filteredData);

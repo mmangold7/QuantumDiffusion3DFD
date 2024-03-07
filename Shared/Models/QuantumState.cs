@@ -1,4 +1,4 @@
-namespace QuantumDiffusion3DFD.Shared;
+namespace QuantumDiffusion3DFD.Shared.Models;
 
 public class QuantumState
 {

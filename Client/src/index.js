@@ -1,16 +1,17 @@
 ﻿import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
-var scene, camera, renderer, particleSystem, controls;
+var scene, camera, renderer, particleSystem, controls, storedSpacing, spacingScaleFactor;
 
 function initializeThreeJs(dimensions, spacing) {
     const canvas = document.getElementById('threejs-canvas');
-    var spacingScaleFactor = 100;
-    var singleDimensionScaleFactor = spacingScaleFactor / 10;
+    storedSpacing = spacing;
+    spacingScaleFactor = 100;
+    var singleDimensionScaleFactor = spacingScaleFactor / 10.0;
     var position = {
-        x: (dimensions.x - 1) * singleDimensionScaleFactor / 2,
-        y: (dimensions.y - 1) * singleDimensionScaleFactor / 2,
-        z: (dimensions.z - 1) * singleDimensionScaleFactor / 2
+        x: (dimensions.x - 1) * singleDimensionScaleFactor / 2.0,
+        y: (dimensions.y - 1) * singleDimensionScaleFactor / 2.0,
+        z: (dimensions.z - 1) * singleDimensionScaleFactor / 2.0
     }
     if (!canvas) {
         console.error('Canvas element not found');
@@ -44,7 +45,7 @@ function initializeThreeJs(dimensions, spacing) {
     for (let x = 0; x < dimensions.x; x++) {
         for (let y = 0; y < dimensions.y; y++) {
             for (let z = 0; z < dimensions.z; z++) {
-                const cubeSize = 10;
+                const cubeSize = singleDimensionScaleFactor;
                 const cubeGeometry = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
                 const cubeMaterial = new THREE.MeshBasicMaterial({
                     color: "#000000",
@@ -73,6 +74,13 @@ function initializeThreeJs(dimensions, spacing) {
     wireFrame.position.set(position.x, position.y, position.z);
     scene.add(wireFrame);
 
+    // Initialize the classical particle
+    //const particleGeometry = new THREE.SphereGeometry(classicalRadius * singleDimensionScaleFactor, 32, 32);
+    //const particleMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    //classicalParticle = new THREE.Mesh(particleGeometry, particleMaterial);
+    //classicalParticle.visible = false;
+    //scene.add(classicalParticle);
+
     animate();
 }
 
@@ -89,6 +97,16 @@ function updateThreeJsScene(updatedData) {
             object.material.needsUpdate = true;
         }
     });
+
+    // Update classical system
+    //if (classicalData) {
+    //    classicalParticle.position.set(
+    //        classicalData.posX * storedSpacing * spacingScaleFactor,
+    //        classicalData.posY * storedSpacing * spacingScaleFactor,
+    //        classicalData.posZ * storedSpacing * spacingScaleFactor
+    //    );
+    //    classicalParticle.visible = true;
+    //}
 }
 
 function animate() {
